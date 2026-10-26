@@ -4,36 +4,39 @@ struct ContentView: View {
     @Environment(LibraryStore.self) private var store
     @State private var sidebarSelection: SidebarItem? = .all
     @State private var raindropSelection: Raindrop.ID?
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
+
+    /// The bookmark list follows the sidebar: hiding the sidebar leaves just the page.
+    private var showsList: Bool { columnVisibility != .detailOnly }
+
+    private var selectedRaindrop: Raindrop? {
+        raindropSelection.flatMap(store.raindrop(id:))
+    }
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView(selection: $sidebarSelection)
-        } content: {
-            switch store.phase {
-            case .idle, .loading:
-                ProgressView()
-            case .failed(let message):
-                ContentUnavailableView {
-                    Label("Couldn't Load Library", systemImage: "exclamationmark.triangle")
-                } description: {
-                    Text(message)
-                } actions: {
-                    Button("Try Again") { Task { await store.load() } }
-                }
-            case .loaded:
-                if let sidebarSelection {
-                    RaindropListView(source: sidebarSelection, selection: $raindropSelection)
-                } else {
-                    ContentUnavailableView("Select a Collection", systemImage: "sidebar.left")
-                }
-            }
         } detail: {
-            if let id = raindropSelection, let raindrop = store.raindrop(id: id) {
-                RaindropDetailView(raindrop: raindrop)
-            } else {
-                ContentUnavailableView("No Bookmark Selected", systemImage: "bookmark")
+            #if os(macOS)
+            HSplitView {
+                if showsList {
+                    list
+                        .frame(minWidth: 280, idealWidth: 360, maxWidth: 560, maxHeight: .infinity)
+                }
+                detail
+                    .frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
             }
+            #else
+            HStack(spacing: 0) {
+                if showsList {
+                    list.frame(width: 360)
+                    Divider()
+                }
+                detail
+            }
+            #endif
         }
+        .navigationTitle(title)
         .onChange(of: sidebarSelection) { raindropSelection = nil }
         .toolbar {
             ToolbarItem(placement: .navigation) {
@@ -49,6 +52,46 @@ struct ContentView: View {
         }
         .task {
             if store.phase == .idle { await store.load() }
+        }
+    }
+
+    private var title: String {
+        if !showsList, let selectedRaindrop {
+            selectedRaindrop.title
+        } else {
+            sidebarSelection.map(store.title(for:)) ?? "Raindrop"
+        }
+    }
+
+    @ViewBuilder
+    private var list: some View {
+        switch store.phase {
+        case .idle, .loading:
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .failed(let message):
+            ContentUnavailableView {
+                Label("Couldn't Load Library", systemImage: "exclamationmark.triangle")
+            } description: {
+                Text(message)
+            } actions: {
+                Button("Try Again") { Task { await store.load() } }
+            }
+        case .loaded:
+            if let sidebarSelection {
+                RaindropListView(source: sidebarSelection, selection: $raindropSelection)
+            } else {
+                ContentUnavailableView("Select a Collection", systemImage: "sidebar.left")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var detail: some View {
+        if let selectedRaindrop {
+            RaindropDetailView(raindrop: selectedRaindrop)
+        } else {
+            ContentUnavailableView("No Bookmark Selected", systemImage: "bookmark")
         }
     }
 }

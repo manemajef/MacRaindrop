@@ -1,6 +1,73 @@
 import SwiftUI
+import WebKit
 
+/// Shows the bookmarked page itself, with the raindrop's details in an inspector.
 struct RaindropDetailView: View {
+    @Environment(LibraryStore.self) private var store
+    let raindrop: Raindrop
+
+    @AppStorage("showInspector") private var showInspector = true
+
+    var body: some View {
+        Group {
+            if let url = raindrop.url {
+                RaindropWebView(url: url)
+            } else {
+                // Nothing to load, so the details take the whole column.
+                RaindropInfoView(raindrop: raindrop)
+            }
+        }
+        .inspector(isPresented: $showInspector) {
+            RaindropInfoView(raindrop: raindrop)
+                .inspectorColumnWidth(min: 260, ideal: 320, max: 440)
+        }
+        .toolbar {
+            ToolbarItemGroup {
+                Button {
+                    store.toggleImportant(raindrop.id)
+                } label: {
+                    Label("Favorite", systemImage: raindrop.important ? "heart.fill" : "heart")
+                }
+                if let url = raindrop.url {
+                    ShareLink(item: url)
+                    Link(destination: url) {
+                        Label("Open in Browser", systemImage: "safari")
+                    }
+                }
+            }
+            ToolbarItem {
+                Button {
+                    showInspector.toggle()
+                } label: {
+                    Label("Inspector", systemImage: "sidebar.trailing")
+                }
+                .help(showInspector ? "Hide Inspector" : "Show Inspector")
+            }
+        }
+    }
+}
+
+private struct RaindropWebView: View {
+    let url: URL
+    @State private var page = WebPage()
+
+    var body: some View {
+        WebView(page)
+            .overlay(alignment: .top) {
+                if page.isLoading {
+                    ProgressView(value: page.estimatedProgress)
+                        .progressViewStyle(.linear)
+                        .controlSize(.small)
+                }
+            }
+            .onChange(of: url, initial: true) {
+                page.load(URLRequest(url: url))
+            }
+    }
+}
+
+/// The raindrop's metadata: cover, excerpt, note, tags, highlights and info.
+struct RaindropInfoView: View {
     @Environment(LibraryStore.self) private var store
     let raindrop: Raindrop
 
@@ -9,8 +76,8 @@ struct RaindropDetailView: View {
             VStack(alignment: .leading, spacing: 20) {
                 if raindrop.coverURL != nil {
                     CoverImage(url: raindrop.coverURL, kind: raindrop.type, contentMode: .fit)
-                        .frame(maxWidth: .infinity, maxHeight: 320)
-                        .clipShape(.rect(cornerRadius: 10))
+                        .frame(maxWidth: .infinity, maxHeight: 220)
+                        .clipShape(.rect(cornerRadius: 8))
                 }
 
                 header
@@ -39,32 +106,15 @@ struct RaindropDetailView: View {
 
                 section("Info") { metadata }
             }
-            .padding(24)
-            .frame(maxWidth: 720, alignment: .leading)
-            .frame(maxWidth: .infinity)
-        }
-        .navigationTitle(raindrop.title)
-        .toolbar {
-            ToolbarItemGroup {
-                Button {
-                    store.toggleImportant(raindrop.id)
-                } label: {
-                    Label("Favorite", systemImage: raindrop.important ? "heart.fill" : "heart")
-                }
-                if let url = raindrop.url {
-                    ShareLink(item: url)
-                    Link(destination: url) {
-                        Label("Open in Browser", systemImage: "safari")
-                    }
-                }
-            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(raindrop.title)
-                .font(.title2.bold())
+                .font(.title3.bold())
                 .textSelection(.enabled)
             if let url = raindrop.url {
                 Link(destination: url) {

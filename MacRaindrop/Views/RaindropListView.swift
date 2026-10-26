@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RaindropListView: View {
     @Environment(LibraryStore.self) private var store
+    @Environment(\.openURL) private var openURL
     let source: SidebarItem
     @Binding var selection: Raindrop.ID?
 
@@ -15,7 +16,16 @@ struct RaindropListView: View {
     var body: some View {
         List(raindrops, selection: $selection) { raindrop in
             RaindropRow(raindrop: raindrop)
-                .contextMenu { RaindropActions(raindrop: raindrop) }
+        }
+        .contextMenu(forSelectionType: Raindrop.ID.self) { ids in
+            if let id = ids.first, let raindrop = store.raindrop(id: id) {
+                RaindropActions(raindrop: raindrop)
+            }
+        } primaryAction: { ids in
+            // Double-click (or Return) opens the page in the default browser.
+            for url in ids.compactMap({ store.raindrop(id: $0)?.url }) {
+                openURL(url)
+            }
         }
         .overlay {
             if raindrops.isEmpty {
@@ -27,10 +37,8 @@ struct RaindropListView: View {
             }
         }
         .searchable(text: $searchText, prompt: "Search \(store.title(for: source))")
-        .navigationTitle(store.title(for: source))
         #if os(macOS)
         .navigationSubtitle("\(raindrops.count) bookmarks")
-        .navigationSplitViewColumnWidth(min: 300, ideal: 380)
         #endif
         .toolbar {
             ToolbarItem {
