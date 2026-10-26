@@ -1,0 +1,975 @@
+{
+  "result": true,
+  "items": [
+    {
+      "_id": 1902951387,
+      "link": "https://mvflix.net/player/tv/62046/1/9/scream-queens",
+      "title": "Watching Scream Queens (2015) Online – MovieFlix",
+      "excerpt": "Watch Scream Queens (2015) online in HD on MovieFlix. The super-charged comedy-horror series is a modern take on the classic whodunit with a killer cast.",
+      "note": "",
+      "type": "video",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://image.tmdb.org/t/p/w500/yeayXZYSU8xdmC8i5g5jTdxeggp.jpg",
+      "media": [
+        {
+          "link": "https://image.tmdb.org/t/p/w500/yeayXZYSU8xdmC8i5g5jTdxeggp.jpg",
+          "type": "image"
+        }
+      ],
+      "tags": [],
+      "highlights": [],
+      "important": false,
+      "removed": false,
+      "created": "2026-10-26T11:27:14.807Z",
+      "collection": { "$ref": "collections", "$id": -1, "oid": -1 },
+      "lastUpdate": "2026-10-26T11:27:27.848Z",
+      "domain": "mvflix.net",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1902951387,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T11:49:02.468Z",
+        "size": 117691
+      },
+      "collectionId": -1
+    },
+    {
+      "_id": 1902868275,
+      "link": "https://x.com/kaizerrev/status/1923787986782626105?s=12",
+      "title": "YE - HH (Classical Version)",
+      "excerpt": "",
+      "note": "",
+      "type": "article",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://jf.x.com/images/media-preview/1923787986782626105",
+      "media": [
+        {
+          "link": "https://jf.x.com/images/media-preview/1923787986782626105",
+          "type": "image"
+        }
+      ],
+      "tags": [],
+      "highlights": [],
+      "important": false,
+      "removed": false,
+      "created": "2026-10-26T09:25:32.133Z",
+      "collection": { "$ref": "collections", "$id": 76473230, "oid": 76473230 },
+      "lastUpdate": "2026-10-26T09:25:36.275Z",
+      "domain": "x.com",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1902868275,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T09:41:40.775Z",
+        "size": 669063
+      },
+      "collectionId": 76473230
+    },
+    {
+      "_id": 1902868192,
+      "link": "https://x.com/bgatesisapyscho/status/1936753521464091003?s=12",
+      "title": "Man farted on this Woman in the Grocery Store & literally ended her entire life.",
+      "excerpt": "",
+      "note": "",
+      "type": "article",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://jf.x.com/images/media-preview/1936753521464091003",
+      "media": [
+        {
+          "link": "https://jf.x.com/images/media-preview/1936753521464091003",
+          "type": "image"
+        }
+      ],
+      "tags": [],
+      "highlights": [],
+      "important": false,
+      "removed": false,
+      "created": "2026-10-26T09:25:11.963Z",
+      "collection": { "$ref": "collections", "$id": 76473230, "oid": 76473230 },
+      "lastUpdate": "2026-10-26T09:25:16.212Z",
+      "domain": "x.com",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1902868192,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T09:43:22.643Z",
+        "size": 1192057
+      },
+      "collectionId": 76473230
+    },
+    {
+      "_id": 1902867977,
+      "link": "https://x.com/imessaage_/status/2075971020293320861?s=12",
+      "title": "كاميرا رصد حرارية توثق كمية الريح التي تطلقه الفنانات على المسرح",
+      "excerpt": "",
+      "note": "",
+      "type": "article",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://jf.x.com/images/media-preview/2075971020293320861",
+      "media": [
+        {
+          "type": "image",
+          "link": "https://jf.x.com/images/media-preview/2075971020293320861"
+        }
+      ],
+      "tags": [],
+      "highlights": [],
+      "important": false,
+      "removed": false,
+      "created": "2026-10-26T09:24:14.134Z",
+      "collection": { "$ref": "collections", "$id": -1, "oid": -1 },
+      "lastUpdate": "2026-10-26T09:24:15.322Z",
+      "domain": "x.com",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1902867977,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T09:41:38.835Z",
+        "size": 406994
+      },
+      "collectionId": -1
+    },
+    {
+      "_id": 1902867190,
+      "link": "https://x.com/_farmercistp_/status/2086317709327782263?s=12",
+      "title": "She really had to inform her first not to call her “sir,” yet Granny was unforgiving with her words.",
+      "excerpt": "That's cruelty",
+      "note": "",
+      "type": "article",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://jf.x.com/images/media-preview/2086317709327782263",
+      "media": [
+        {
+          "link": "https://jf.x.com/images/media-preview/2086317709327782263",
+          "type": "image"
+        }
+      ],
+      "tags": [],
+      "highlights": [],
+      "important": false,
+      "removed": false,
+      "created": "2026-10-26T09:21:25.181Z",
+      "collection": { "$ref": "collections", "$id": 76473230, "oid": 76473230 },
+      "lastUpdate": "2026-10-26T09:21:29.723Z",
+      "domain": "x.com",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1902867190,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T09:41:38.449Z",
+        "size": 765661
+      },
+      "collectionId": 76473230
+    },
+    {
+      "_id": 1902866981,
+      "link": "https://x.com/doedpetal/status/2092355033492865110?s=12",
+      "title": "“sweetener is shit”",
+      "excerpt": "me:",
+      "note": "",
+      "type": "article",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://jf.x.com/images/media-preview/2092355033492865110",
+      "media": [
+        {
+          "link": "https://jf.x.com/images/media-preview/2092355033492865110",
+          "type": "image"
+        }
+      ],
+      "tags": [],
+      "highlights": [],
+      "important": false,
+      "removed": false,
+      "created": "2026-10-26T09:20:58.110Z",
+      "collection": { "$ref": "collections", "$id": 76473230, "oid": 76473230 },
+      "lastUpdate": "2026-10-26T09:21:01.955Z",
+      "domain": "x.com",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1902866981,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T09:41:37.276Z",
+        "size": 79252
+      },
+      "collectionId": 76473230
+    },
+    {
+      "_id": 1902866768,
+      "link": "https://x.com/_yessee_/status/2103264339075768673?s=12",
+      "title": "Age-restricted adult content. This content might not be appropriate for people under 18 years old. To view this media, you’ll need to log in to X. Learn more",
+      "excerpt": "",
+      "note": "",
+      "type": "link",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://rdl.ink/render/https%3A%2F%2Fx.com%2F_yessee_%2Fstatus%2F2103264339075768673%3Fs%3D12",
+      "media": [],
+      "tags": [],
+      "highlights": [],
+      "important": false,
+      "removed": false,
+      "created": "2026-10-26T09:20:06.367Z",
+      "collection": { "$ref": "collections", "$id": 76473230, "oid": 76473230 },
+      "lastUpdate": "2026-10-26T09:20:12.634Z",
+      "domain": "x.com",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1902866768,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T09:41:37.373Z",
+        "size": 155793
+      },
+      "collectionId": 76473230
+    },
+    {
+      "_id": 1902866654,
+      "link": "https://x.com/drclownphd/status/2106417111509725305?s=12",
+      "title": "APT = Annexing Poland Together 💀",
+      "excerpt": "",
+      "note": "",
+      "type": "article",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://jf.x.com/images/media-preview/2106417111509725305",
+      "media": [
+        {
+          "link": "https://jf.x.com/images/media-preview/2106417111509725305",
+          "type": "image"
+        }
+      ],
+      "tags": [],
+      "highlights": [],
+      "important": false,
+      "removed": false,
+      "created": "2026-10-26T09:19:35.280Z",
+      "collection": { "$ref": "collections", "$id": 76473230, "oid": 76473230 },
+      "lastUpdate": "2026-10-26T09:19:42.196Z",
+      "domain": "x.com",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1902866654,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T09:41:38.267Z",
+        "size": 484097
+      },
+      "collectionId": 76473230
+    },
+    {
+      "_id": 1902858541,
+      "link": "https://youtube.com/watch?v=SS2EPMiK9C8&si=4Zn-y0-tmPCCilwx",
+      "title": "kristenpoops",
+      "excerpt": "1.2K likes, 81 comments. \"I Have Gas\"",
+      "note": "",
+      "type": "video",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://i.ytimg.com/vi/SS2EPMiK9C8/maxresdefault.jpg?sqp=-oaymwErCIAKENAF8quKqQMfGADwAQH4AbYIgAKAD4oCDAgAEAEYciBTKDUwD8ACAQ==&rs=AOn4CLBJvKLcHnKEHUCvTW3vIV8a9Lh6rw",
+      "media": [
+        {
+          "link": "https://i.ytimg.com/vi/SS2EPMiK9C8/maxresdefault.jpg?sqp=-oaymwErCIAKENAF8quKqQMfGADwAQH4AbYIgAKAD4oCDAgAEAEYciBTKDUwD8ACAQ==&rs=AOn4CLBJvKLcHnKEHUCvTW3vIV8a9Lh6rw",
+          "type": "image"
+        }
+      ],
+      "tags": [],
+      "highlights": [],
+      "important": false,
+      "removed": false,
+      "created": "2026-10-26T08:58:12.397Z",
+      "collection": { "$ref": "collections", "$id": 76473230, "oid": 76473230 },
+      "lastUpdate": "2026-10-26T08:58:39.543Z",
+      "domain": "youtube.com",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1902858541,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T09:15:59.368Z",
+        "size": 1013
+      },
+      "collectionId": 76473230
+    },
+    {
+      "_id": 1902841347,
+      "link": "https://myretromac.app/#features",
+      "title": "RetroMac - Live CRT, VHS & Retro Themes for macOS",
+      "excerpt": "A macOS menu bar app with 30+ live CRT, VHS and classic Mac & Windows themes. Real retro shaders on your whole screen or one window. Free, one-time €8.88 Pro upgrade.",
+      "note": "",
+      "type": "link",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://myretromac.app/__l5e/assets-v1/57ad9f87-df7b-44ba-92e3-33d0b8af2429/og-before-after.jpg",
+      "media": [
+        {
+          "link": "https://myretromac.app/__l5e/assets-v1/57ad9f87-df7b-44ba-92e3-33d0b8af2429/og-before-after.jpg",
+          "type": "image"
+        },
+        {
+          "link": "https://myretromac.app/__l5e/assets-v1/f87aef2d-081f-453b-b7d4-9dae6fff924c/retromac-overview-v3-poster-960.webp",
+          "type": "image"
+        },
+        {
+          "link": "https://myretromac.app/__l5e/assets-v1/9222bb6e-a187-4403-aec4-0076b6695fb5/fx-crt-royal-960.webp",
+          "type": "image"
+        },
+        {
+          "link": "https://myretromac.app/__l5e/assets-v1/edf67d67-a354-4bfc-a074-cc2f70402600/fx-sony-trinity-960.webp",
+          "type": "image"
+        },
+        {
+          "link": "https://myretromac.app/__l5e/assets-v1/5842566a-412a-4f36-a28f-c5402c4672bd/fx-ntsc-composite-960.webp",
+          "type": "image"
+        }
+      ],
+      "tags": ["mac"],
+      "highlights": [
+        {
+          "text": "future!\"Woosuk Parkuser\"damm... feel like very old. like a adult in Crayon Shin-chan: The Storm Called: The Adult Empire Strikes Back. without further ado, SHUT UP TAKE MY MONEY!\"u/North-Active-6731reddit\"Absolutely love the shaders on this app, it's excellent and couldn't have come better. Bought and paid to support further development.\"paul eric lagaceuser\"Well worth investing in. The application provides a visual change that doesn't break the security below. Can't wait to see refinement to shaders. Impressive work\"u/OhSirrahreddit\"Wow it's almost like you reimplemented the dock. I've never seen that done before.\"Mac Sound Solutions inc.user\"Love RetroMac, brings back memories of vintage Mac OS days gone by and the virtual camera effects are super cool for creating content. Not to mention playing some old video games like Doom and Duke Nukem.\"u/Wif001reddit\"Nice one! Windows XP looks hilarious on my MacBook.\"Previous slideNext slide",
+          "note": "",
+          "color": "yellow",
+          "position": 0,
+          "created": "2026-10-26T08:09:06.413Z",
+          "lastUpdate": "2026-10-26T08:09:12.361Z",
+          "creatorRef": 2538886,
+          "_id": "6adf0aa82e8334dc7d82b7fd"
+        }
+      ],
+      "important": false,
+      "removed": false,
+      "created": "2026-10-26T08:09:06.413Z",
+      "collection": { "$ref": "collections", "$id": -1, "oid": -1 },
+      "lastUpdate": "2026-10-26T08:09:12.361Z",
+      "domain": "myretromac.app",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1902841347,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T08:44:04.117Z",
+        "size": 11536961
+      },
+      "collectionId": -1
+    },
+    {
+      "_id": 1901859158,
+      "link": "https://x.com/schmayterling/status/2114256375442460820?s=12",
+      "title": "introducing hibi, the one app for everything you write.",
+      "excerpt": "markdown, typst, latex, and more.\nwith drop-in obsidian compatibility.\n\nfree. open source. local-first.\nbuilt for macOS, windows, and linux.\n\nnow in beta → https://t.co/uGx77Perkw",
+      "note": "",
+      "type": "article",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://jf.x.com/images/media-preview/2114256375442460820",
+      "media": [
+        {
+          "link": "https://jf.x.com/images/media-preview/2114256375442460820",
+          "type": "image"
+        }
+      ],
+      "tags": [],
+      "highlights": [],
+      "important": false,
+      "removed": false,
+      "created": "2026-10-25T14:58:16.213Z",
+      "collection": { "$ref": "collections", "$id": 76403968, "oid": 76403968 },
+      "lastUpdate": "2026-10-25T15:10:17.930Z",
+      "domain": "x.com",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1901859158,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T08:43:56.336Z",
+        "size": 402821
+      },
+      "collectionId": 76403968
+    },
+    {
+      "_id": 1901561317,
+      "link": "https://www.instagram.com/p/CQF5r-Fi1Dj/",
+      "title": "Instagram Nose Job",
+      "excerpt": "159 likes, 7 comments - dr_fichman on June 14, 2021‎: \"המטופל בתמונה עבר ניתוח אף פתוח לפני כחצי שנה, ולכן עבר כמחצית מתהליך ההחלמה הסופי. \nבניתוח אף לגבר חשוב לשמור על המראה הגברי ולהקפיד לא ליצור אף סולד וקטן מידי.\nKeeping it natural. 🍃\nThe art of #rhinoplasty by Dr.fichman\n.\n.\n.\n.\n.\n.\n.\n.\n#rinoplastica #rhinoplastie #rinoplastika #rhinoplastyspecialist\n#rhinoplastybeforeandafter\n‎#جراحة_تجميل\n#septorhinoplasty\n#newnose #rhinoplastyistanbul\n‎#جراحه\n#noseart\n\n‎#جراحة_تجميلية\n#piezosurgery #ultrasonicrhinoplasty\n#nasenop #perfectnose\n#rhinoplastyexpert #nosejobs\n#nasenoperation \n#פיסולאף #עיצובאף \n#ניתוחאף #ניתוחאףפלסטי #ניתוח #ניתוחיםפלסטיים #תיקוןאף #פיסולאף \n#zura_mccom_140621 #zura_mclike_140621\". ‎",
+      "note": "No",
+      "type": "image",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://scontent-fra3-1.cdninstagram.com/v/t51.82787-15/669832636_18406406689176601_8657924685239171064_n.jpg?stp=c216.0.648.648a_dst-jpg_e35_s640x640_tt6&_nc_cat=107&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0FST1VTRUxfSVRFTS5iZXN0X2ltYWdlX3VybGdlbi5DMyJ9&_nc_ohc=53usrb4zceEQ7kNvwE4343e&_nc_oc=AdoqfrP5aSEKphtJpSbBA7mNuzXdpsEnek8sTRM5oeOxJ64upa2fEMfOeHbx64HUEPY&_nc_zt=23&_nc_ht=scontent-fra3-1.cdninstagram.com&_nc_gid=I27Y10N29SEml6GhuP3Xpg&_nc_ss=7ba02&oh=00_AQOfc4wYwaqJ1yWizEMn-jmBGtdPpO9AwCT-pK7EZXWwVQ&oe=6AE3C4C0",
+      "media": [
+        {
+          "type": "image",
+          "link": "https://scontent-fra3-1.cdninstagram.com/v/t51.82787-15/669832636_18406406689176601_8657924685239171064_n.jpg?stp=c216.0.648.648a_dst-jpg_e35_s640x640_tt6&_nc_cat=107&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0FST1VTRUxfSVRFTS5iZXN0X2ltYWdlX3VybGdlbi5DMyJ9&_nc_ohc=53usrb4zceEQ7kNvwE4343e&_nc_oc=AdoqfrP5aSEKphtJpSbBA7mNuzXdpsEnek8sTRM5oeOxJ64upa2fEMfOeHbx64HUEPY&_nc_zt=23&_nc_ht=scontent-fra3-1.cdninstagram.com&_nc_gid=I27Y10N29SEml6GhuP3Xpg&_nc_ss=7ba02&oh=00_AQOfc4wYwaqJ1yWizEMn-jmBGtdPpO9AwCT-pK7EZXWwVQ&oe=6AE3C4C0"
+        }
+      ],
+      "tags": [],
+      "removed": false,
+      "collection": { "$ref": "collections", "$id": 76404692, "oid": 76404692 },
+      "highlights": [],
+      "created": "2026-10-25T12:23:23.253Z",
+      "lastUpdate": "2026-10-25T12:23:23.253Z",
+      "domain": "instagram.com",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1901561317,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T08:44:01.485Z",
+        "size": 1761692
+      },
+      "collectionId": 76404692
+    },
+    {
+      "_id": 1901411299,
+      "link": "https://www.reddit.com/r/BookmarkManagers/s/QFsR3IfTZ8",
+      "title": "What bookmark managers are you actually using?",
+      "excerpt": "Explore this post and more from the BookmarkManagers community",
+      "note": "",
+      "type": "link",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://share.redd.it/preview/post/1xbw7fi",
+      "media": [
+        {
+          "link": "https://share.redd.it/preview/post/1xbw7fi",
+          "type": "image"
+        },
+        {
+          "link": "https://share.redd.it/preview/post/1xbw7fi?share=s9HWQ2f3ISqAzUbtWM1dU",
+          "type": "image"
+        }
+      ],
+      "tags": [],
+      "highlights": [],
+      "important": false,
+      "removed": false,
+      "created": "2026-10-25T08:52:39.999Z",
+      "collection": { "$ref": "collections", "$id": -1, "oid": -1 },
+      "lastUpdate": "2026-10-25T08:52:45.431Z",
+      "domain": "reddit.com",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1901411299,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T08:44:06.626Z",
+        "size": 10670903
+      },
+      "collectionId": -1
+    },
+    {
+      "_id": 1900943105,
+      "link": "https://www.cis.upenn.edu/~jean/math-deep.pdf",
+      "title": "Math deep",
+      "excerpt": "",
+      "note": "",
+      "type": "document",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://rdl.ink/render/https%3A%2F%2Fwww.cis.upenn.edu%2F~jean%2Fmath-deep.pdf",
+      "media": [],
+      "tags": [],
+      "important": false,
+      "reminder": { "date": null },
+      "removed": false,
+      "created": "2026-10-24T21:06:08.258Z",
+      "collection": { "$ref": "collections", "$id": -1, "oid": -1 },
+      "highlights": [],
+      "lastUpdate": "2026-10-26T08:39:46.459Z",
+      "domain": "cis.upenn.edu",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1900943105,
+      "broken": false,
+      "cache": {
+        "retries": 1,
+        "retryAfter": "2026-10-27T15:45:08.392Z",
+        "status": "retry"
+      },
+      "collectionId": -1
+    },
+    {
+      "_id": 1900892857,
+      "link": "https://x.com/antoniolupetti/status/2113992794679214108?s=12",
+      "title": "\"The Linear Algebra Behind Google\" is a short paper that explains the mathematics behind Google's original PageRank algorithm.",
+      "excerpt": "The paper covers eigenvalues and eigenvectors, stochastic matrices, Markov chains, and iterative methods, using numerical examples and graphs to illustrate how PageRank wo…",
+      "note": "",
+      "type": "article",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://pbs.twimg.com/media/HVZo0Z2XIAAQMuV?format=webp&name=large",
+      "media": [
+        {
+          "link": "https://pbs.twimg.com/media/HVZo0Z2XIAAQMuV?format=webp&name=large",
+          "type": "image"
+        }
+      ],
+      "tags": [],
+      "highlights": [],
+      "important": false,
+      "removed": false,
+      "created": "2026-10-24T19:49:34.279Z",
+      "collection": { "$ref": "collections", "$id": 76404660, "oid": 76404660 },
+      "lastUpdate": "2026-10-25T15:10:26.562Z",
+      "domain": "x.com",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1900892857,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T08:43:47.875Z",
+        "size": 429481
+      },
+      "collectionId": 76404660
+    },
+    {
+      "_id": 1900737491,
+      "link": "https://www.bilibili.tv/en/video/2049700030",
+      "title": "Scream Queens (2015) S1: Episode 5 - BiliBili",
+      "excerpt": "Scream Queens (2015) S1: Episode 5, Southeast Asia\\'s leading anime, comics, and games (ACG) community where people can create, watch and share engaging videos.",
+      "note": "",
+      "type": "link",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://p.bstarstatic.com/ugc/d73de24abd575092abe7cfc5a4ee9cf8.jpg?x-oss-process=image%2Fresize%2Cw_600%2Fcrop%2Cmid%2Cw_600%2Ch_315%2Fformat%2Cwebp%2Fquality%2CQ_90%2Fwatermark%2Cimage_bWFuYWdlbWVudC9hYWVkYjRmMjgyN2Q0ZWUxNDlkYzMyZDg0MTE3ZWFmMC5wbmc_eC1vc3MtcHJvY2Vzcz1pbWFnZS9yZXNpemUsUF8yMA%2Cshadow_70%2Cg_ne%2Cx_22%2Cy_16%2Fwatermark%2Cimage_bWFuYWdlbWVudC8yM2FkMzc5ODYxNjZhMGQwY2Y5NjAwZDI1NWE4OWNmNC5wbmc_eC1vc3MtcHJvY2Vzcz1pbWFnZS9yZXNpemUsUF8yMA%2Cg_center",
+      "media": [
+        {
+          "type": "image",
+          "link": "https://p.bstarstatic.com/ugc/d73de24abd575092abe7cfc5a4ee9cf8.jpg?x-oss-process=image%2Fresize%2Cw_600%2Fcrop%2Cmid%2Cw_600%2Ch_315%2Fformat%2Cwebp%2Fquality%2CQ_90%2Fwatermark%2Cimage_bWFuYWdlbWVudC9hYWVkYjRmMjgyN2Q0ZWUxNDlkYzMyZDg0MTE3ZWFmMC5wbmc_eC1vc3MtcHJvY2Vzcz1pbWFnZS9yZXNpemUsUF8yMA%2Cshadow_70%2Cg_ne%2Cx_22%2Cy_16%2Fwatermark%2Cimage_bWFuYWdlbWVudC8yM2FkMzc5ODYxNjZhMGQwY2Y5NjAwZDI1NWE4OWNmNC5wbmc_eC1vc3MtcHJvY2Vzcz1pbWFnZS9yZXNpemUsUF8yMA%2Cg_center"
+        }
+      ],
+      "tags": [],
+      "removed": false,
+      "collection": { "$ref": "collections", "$id": -1, "oid": -1 },
+      "highlights": [],
+      "created": "2026-10-24T16:42:43.257Z",
+      "lastUpdate": "2026-10-24T16:42:43.257Z",
+      "domain": "bilibili.tv",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1900737491,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T08:44:02.939Z",
+        "size": 370457
+      },
+      "collectionId": -1
+    },
+    {
+      "_id": 1900539547,
+      "link": "https://block.xyz/dessa",
+      "title": "Dessa - the Conversation Model trained only on speech",
+      "excerpt": "You learned to talk by listening. So did Dessa. A research preview of a full-duplex speech model.",
+      "note": "",
+      "type": "link",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://block.xyz/dessa/_media/6865f35ec6013672f8f8/assets/marketing/variants/v3.jpg",
+      "media": [
+        {
+          "type": "image",
+          "link": "https://block.xyz/dessa/_media/6865f35ec6013672f8f8/assets/marketing/variants/v3.jpg"
+        }
+      ],
+      "tags": [],
+      "highlights": [],
+      "important": true,
+      "removed": false,
+      "created": "2026-10-23T22:59:29.000Z",
+      "collection": { "$ref": "collections", "$id": 76403968, "oid": 76403968 },
+      "lastUpdate": "2026-10-24T13:24:19.405Z",
+      "domain": "block.xyz",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1900539547,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T08:43:59.216Z",
+        "size": 312396
+      },
+      "collectionId": 76403968
+    },
+    {
+      "_id": 1900539546,
+      "link": "https://pretype.app/",
+      "title": "Your Mac finishes your sentences",
+      "excerpt": "Free, open-source, on-device autocomplete for every macOS text field. Ghost text at your caret, Tab to accept — nothing ever leaves your Mac.",
+      "note": "",
+      "type": "link",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://pretype.app/assets/og.png",
+      "media": [
+        { "type": "image", "link": "https://pretype.app/assets/og.png" }
+      ],
+      "tags": [],
+      "highlights": [],
+      "important": false,
+      "removed": false,
+      "created": "2026-10-23T17:37:14.000Z",
+      "collection": { "$ref": "collections", "$id": 76403968, "oid": 76403968 },
+      "lastUpdate": "2026-10-24T13:24:22.379Z",
+      "domain": "pretype.app",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1900539548,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T08:44:02.939Z",
+        "size": 586718
+      },
+      "collectionId": 76403968
+    },
+    {
+      "_id": 1900539545,
+      "link": "https://latex-cookbook.net/",
+      "title": "Collection of LaTeX recipes",
+      "excerpt": "",
+      "note": "",
+      "type": "link",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://rdl.ink/render/https%3A%2F%2Flatex-cookbook.net%2F",
+      "media": [],
+      "tags": ["latex"],
+      "highlights": [],
+      "important": false,
+      "removed": false,
+      "created": "2026-10-23T16:07:21.000Z",
+      "collection": { "$ref": "collections", "$id": 67288605, "oid": 67288605 },
+      "lastUpdate": "2026-10-26T20:38:00.440Z",
+      "domain": "latex-cookbook.net",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1900539549,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T08:43:58.495Z",
+        "size": 1106093
+      },
+      "collectionId": 67288605
+    },
+    {
+      "_id": 1900539542,
+      "link": "https://www.reddit.com/r/AskHistorians/s/g2lhkSDoW1",
+      "title": "From the AskHistorians community on Reddit",
+      "excerpt": "Explore this post and more from the AskHistorians community",
+      "note": "",
+      "type": "link",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://share.redd.it/preview/post/1xb3aie",
+      "media": [
+        {
+          "type": "image",
+          "link": "https://share.redd.it/preview/post/1xb3aie"
+        },
+        {
+          "type": "image",
+          "link": "https://share.redd.it/preview/post/1xb3aie?share=qpat_qjNisf61_BR_KIUs"
+        }
+      ],
+      "tags": [],
+      "highlights": [],
+      "important": false,
+      "removed": false,
+      "created": "2026-10-21T14:16:48.000Z",
+      "collection": { "$ref": "collections", "$id": -1, "oid": -1 },
+      "lastUpdate": "2026-10-24T13:44:34.679Z",
+      "domain": "reddit.com",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1900558781,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T08:44:02.092Z",
+        "size": 11196420
+      },
+      "collectionId": -1
+    },
+    {
+      "_id": 1900539541,
+      "link": "https://fluentmac.app/",
+      "title": "Fluent – AI Assistant for Every Mac App",
+      "excerpt": "Fluent is a native macOS AI assistant that helps you draft, refine, and understand content across your apps with privacy-respecting on-device context.",
+      "note": "",
+      "type": "link",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://fluentmac.app/apple-touch-icon.png",
+      "media": [
+        {
+          "type": "image",
+          "link": "https://fluentmac.app/apple-touch-icon.png"
+        }
+      ],
+      "tags": ["app"],
+      "highlights": [],
+      "important": false,
+      "removed": false,
+      "created": "2026-10-15T19:03:24.000Z",
+      "collection": { "$ref": "collections", "$id": 76403968, "oid": 76403968 },
+      "lastUpdate": "2026-10-24T13:23:03.638Z",
+      "domain": "fluentmac.app",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1900539541,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T08:44:06.626Z",
+        "size": 9429052
+      },
+      "collectionId": 76403968
+    },
+    {
+      "_id": 1900539540,
+      "link": "https://sketchfab.com/3d-models/free-burj-khalifa-dubai-c1d6f5884c9c4a56b8d8f9c5555f1902",
+      "title": "( FREE ) Burj Khalifa Dubai - Download Free 3D model by SDC PERFORMANCE™️ (@Lambo_SC04)",
+      "excerpt": "Burj Khalifa (Dubai Skyscraper - برج خليفة)\n\nBurj Khalifa is a skyscraper in Dubai in the United Arab Emirates, which in 2008 became the tallest human structure ever built. His final height, reached on January 17, 2009, is 828 meters. It forms the heart of a new district: Downtoxn Dubai. The inauguration and partial opening took place on January 4, 2010.\n\n\n\n\n\nLocation: United Arab Emirates, Dubai, Dowtown Dubai.\n\n\n\n\nDeveloper: Emaar Properties.\n\n\n\n\nNamed in reference to: Khalifa Ben Zayed Al-Nayane.\n\n\n\n\nHeight: 830 meters.\n\n\n\n\nCreation: January 6, 2004\n\n\n\n\nArchitects: Adrian Smith, Marshall Strabala.\n\n\n\n\nEngineer: William F. Baker.\n\n\n\n\nArchitectural style: High-tech architecture - Neo-Futurism.\n\n\n\nThe model was modeled with Blender 2.90, the download is free, royalty free.\n\nThe model is ready for 3D printing. - ( FREE ) Burj Khalifa Dubai - Download Free 3D model by SDC PERFORMANCE™️ (@Lambo_SC04)",
+      "note": "",
+      "type": "video",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://media.sketchfab.com/models/c1d6f5884c9c4a56b8d8f9c5555f1902/thumbnails/cbb971fab14a48b093e8f77d7911f4b3/26442e6508a547d7b5aa11fdc70727b1.jpeg",
+      "media": [
+        {
+          "type": "image",
+          "link": "https://media.sketchfab.com/models/c1d6f5884c9c4a56b8d8f9c5555f1902/thumbnails/cbb971fab14a48b093e8f77d7911f4b3/26442e6508a547d7b5aa11fdc70727b1.jpeg"
+        }
+      ],
+      "tags": [],
+      "highlights": [],
+      "important": false,
+      "removed": false,
+      "created": "2026-10-14T09:36:45.000Z",
+      "collection": { "$ref": "collections", "$id": 67288637, "oid": 67288637 },
+      "lastUpdate": "2026-10-26T08:49:31.958Z",
+      "domain": "sketchfab.com",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1900539540,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T08:43:58.495Z",
+        "size": 466839
+      },
+      "collectionId": 67288637
+    },
+    {
+      "_id": 1900539538,
+      "link": "https://macfolio.com/",
+      "title": "Curated Mac Discoveries",
+      "excerpt": "Discover the best software, hardware, workspace setups, books, videos, and posts for the Mac ecosystem.",
+      "note": "",
+      "type": "link",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://macfolio.com/og-image.png",
+      "media": [
+        { "type": "image", "link": "https://macfolio.com/og-image.png" }
+      ],
+      "tags": ["mac"],
+      "highlights": [],
+      "important": false,
+      "removed": false,
+      "created": "2026-10-12T14:38:28.000Z",
+      "collection": { "$ref": "collections", "$id": -1, "oid": -1 },
+      "lastUpdate": "2026-10-25T17:09:25.712Z",
+      "domain": "macfolio.com",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1901411300,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T08:44:17.095Z",
+        "size": 50849188
+      },
+      "collectionId": -1
+    },
+    {
+      "_id": 1900539537,
+      "link": "https://chainyourmac.com/",
+      "title": "Scrolling Window Manager for macOS",
+      "excerpt": "A scrolling window manager for macOS. Windows sit side by side on an endless horizontal strip — new windows never resize existing ones. Navigate with trackpad gestures or keyboard shortcuts. Native SwiftUI app with a Rust engine.",
+      "note": "",
+      "type": "link",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://chainyourmac.com/og-card.jpg",
+      "media": [
+        { "type": "image", "link": "https://chainyourmac.com/og-card.jpg" }
+      ],
+      "tags": [],
+      "highlights": [],
+      "important": false,
+      "removed": false,
+      "created": "2026-10-12T04:54:27.000Z",
+      "collection": { "$ref": "collections", "$id": 76403968, "oid": 76403968 },
+      "lastUpdate": "2026-10-26T08:39:46.459Z",
+      "domain": "chainyourmac.com",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1900539549,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T08:43:56.336Z",
+        "size": 529992
+      },
+      "collectionId": 76403968
+    },
+    {
+      "_id": 1900539536,
+      "link": "https://www.seungwoochoe.com/applight",
+      "title": "Applight - Predictive Mac App Switcher",
+      "excerpt": "Switch between Mac apps faster with predictions that learn your workflow and put the right app first.",
+      "note": "",
+      "type": "link",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "cover": "https://www.seungwoochoe.com/_astro/showcase.v5gr3rPl.png",
+      "media": [
+        {
+          "type": "image",
+          "link": "https://www.seungwoochoe.com/_astro/showcase.v5gr3rPl.png"
+        },
+        {
+          "type": "image",
+          "link": "https://www.seungwoochoe.com/_astro/icon.BR28TIXC.png"
+        },
+        {
+          "type": "image",
+          "link": "https://www.seungwoochoe.com/og/app-applight.png"
+        }
+      ],
+      "tags": ["app"],
+      "highlights": [],
+      "important": false,
+      "removed": false,
+      "created": "2026-10-09T00:42:06.000Z",
+      "collection": { "$ref": "collections", "$id": 76403968, "oid": 76403968 },
+      "lastUpdate": "2026-10-24T13:23:03.638Z",
+      "domain": "seungwoochoe.com",
+      "creatorRef": {
+        "_id": 2538886,
+        "avatar": "",
+        "name": "rotem-semah",
+        "email": ""
+      },
+      "sort": 1900539536,
+      "broken": false,
+      "cache": {
+        "status": "ready",
+        "created": "2026-10-26T08:43:58.495Z",
+        "size": 131951
+      },
+      "collectionId": 76403968
+    }
+  ],
+  "count": 508,
+  "collectionId": 0
+}
