@@ -1,48 +1,15 @@
 import SwiftUI
 import WebKit
 
-/// Shows the bookmarked page itself, with the raindrop's details in an inspector.
+/// Shows the bookmarked page itself. Its details live in the window's inspector.
 struct RaindropDetailView: View {
-    @Environment(LibraryStore.self) private var store
     let raindrop: Raindrop
 
-    @AppStorage("showInspector") private var showInspector = true
-
     var body: some View {
-        Group {
-            if let url = raindrop.url {
-                RaindropWebView(url: url)
-            } else {
-                // Nothing to load, so the details take the whole column.
-                RaindropInfoView(raindrop: raindrop)
-            }
-        }
-        .inspector(isPresented: $showInspector) {
-            RaindropInfoView(raindrop: raindrop)
-                .inspectorColumnWidth(min: 260, ideal: 320, max: 440)
-        }
-        .toolbar {
-            ToolbarItemGroup {
-                Button {
-                    store.toggleImportant(raindrop.id)
-                } label: {
-                    Label("Favorite", systemImage: raindrop.important ? "heart.fill" : "heart")
-                }
-                if let url = raindrop.url {
-                    ShareLink(item: url)
-                    Link(destination: url) {
-                        Label("Open in Browser", systemImage: "safari")
-                    }
-                }
-            }
-            ToolbarItem {
-                Button {
-                    showInspector.toggle()
-                } label: {
-                    Label("Inspector", systemImage: "sidebar.trailing")
-                }
-                .help(showInspector ? "Hide Inspector" : "Show Inspector")
-            }
+        if let url = raindrop.url {
+            RaindropWebView(url: url)
+        } else {
+            ContentUnavailableView("No Web Address", systemImage: "link.badge.plus", description: Text("This bookmark has no page to show."))
         }
     }
 }
@@ -197,8 +164,7 @@ private struct HighlightView: View {
 
 #Preview {
     let store = LibraryStore.preview
-    NavigationStack {
-        RaindropDetailView(raindrop: store.raindrops.first { !$0.highlights.isEmpty } ?? store.raindrops[0])
-    }
-    .environment(store)
+    RaindropInfoView(raindrop: store.raindrops.first { !$0.highlights.isEmpty } ?? store.raindrops[0])
+        .frame(width: 320, height: 600)
+        .environment(store)
 }

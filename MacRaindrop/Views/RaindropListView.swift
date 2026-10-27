@@ -3,54 +3,23 @@ import SwiftUI
 struct RaindropListView: View {
     @Environment(LibraryStore.self) private var store
     @Environment(\.openURL) private var openURL
-    let source: SidebarItem
-    @Binding var selection: Raindrop.ID?
-
-    @State private var searchText = ""
-    @AppStorage("raindropSort") private var sort: RaindropSort = .newest
-
-    private var raindrops: [Raindrop] {
-        store.raindrops(in: source, matching: searchText, sortedBy: sort)
-    }
+    let raindrops: [Raindrop]
+    @Binding var selection: Set<Raindrop.ID>
 
     var body: some View {
         List(raindrops, selection: $selection) { raindrop in
             RaindropRow(raindrop: raindrop)
+                .draggable(containerItemID: raindrop.id)
         }
         .contextMenu(forSelectionType: Raindrop.ID.self) { ids in
-            if let id = ids.first, let raindrop = store.raindrop(id: id) {
-                RaindropActions(raindrop: raindrop)
-            }
+            RaindropActions(raindrops: ids.compactMap(store.raindrop(id:)))
         } primaryAction: { ids in
             // Double-click (or Return) opens the page in the default browser.
             for url in ids.compactMap({ store.raindrop(id: $0)?.url }) {
                 openURL(url)
             }
         }
-        .overlay {
-            if raindrops.isEmpty {
-                if searchText.isEmpty {
-                    ContentUnavailableView("No Bookmarks", systemImage: "bookmark", description: Text("Nothing saved here yet."))
-                } else {
-                    ContentUnavailableView.search(text: searchText)
-                }
-            }
-        }
-        .searchable(text: $searchText, prompt: "Search \(store.title(for: source))")
-        #if os(macOS)
-        .navigationSubtitle("\(raindrops.count) bookmarks")
-        #endif
-        .toolbar {
-            ToolbarItem {
-                Menu("Sort", systemImage: "arrow.up.arrow.down") {
-                    Picker("Sort", selection: $sort) {
-                        ForEach(RaindropSort.allCases) { Text($0.label).tag($0) }
-                    }
-                    .pickerStyle(.inline)
-                }
-            }
-        }
-        .onChange(of: source) { searchText = "" }
+        .raindropDragContainer(selection: selection)
     }
 }
 
@@ -107,37 +76,43 @@ struct RaindropRow: View {
     }
 }
 
-/// Shared menu items for a raindrop, used by the context menu and the detail toolbar.
+/// Shared menu items for one or more raindrops, used by the list and card context menus.
 struct RaindropActions: View {
     @Environment(LibraryStore.self) private var store
     @Environment(\.openURL) private var openURL
-    let raindrop: Raindrop
+    let raindrops: [Raindrop]
+
+    private var urls: [URL] { raindrops.compactMap(\.url) }
+    private var allFavorites: Bool { raindrops.allSatisfy(\.important) }
 
     var body: some View {
-        if let url = raindrop.url {
-            Button("Open in Browser", systemImage: "safari") { openURL(url) }
-            ShareLink(item: url)
+        if !urls.isEmpty {
+            Button("Open in Browser", systemImage: "safari") { urls.forEach { openURL($0) } }
+            if let url = urls.first, urls.count == 1 {
+                ShareLink(item: url)
+            }
             #if os(macOS)
-            Button("Copy Link", systemImage: "doc.on.doc") {
+            Button(urls.count == 1 ? "Copy Link" : "Copy \(urls.count) Links", systemImage: "doc.on.doc") {
                 NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(url.absoluteString, forType: .string)
+                NSPasteboard.general.setString(urls.map(\.absoluteString).joined(separator: "\n"), forType: .string)
             }
             #endif
             Divider()
         }
-        Button(
-            raindrop.important ? "Remove from Favorites" : "Add to Favorites",
-            systemImage: raindrop.important ? "heart.slash" : "heart"
-        ) {
-            store.toggleImportant(raindrop.id)
+        if !raindrops.isEmpty {
+            Button(
+                allFavorites ? "Remove from Favorites" : "Add to Favorites",
+                systemImage: allFavorites ? "heart.slash" : "heart"
+            ) {
+                store.setImportant(raindrops.map(\.id), !allFavorites)
+            }
         }
     }
 }
 
 #Preview {
-    @Previewable @State var selection: Raindrop.ID?
-    NavigationStack {
-        RaindropListView(source: .all, selection: $selection)
-    }
-    .environment(LibraryStore.preview)
+    @Previewable @State var selection: Set<Raindrop.ID> = []
+    let store = LibraryStore.preview
+    RaindropListView(raindrops: store.raindrops(in: .all), selection: $selection)
+        .environment(store)
 }

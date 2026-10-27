@@ -184,9 +184,11 @@ final class LibraryStore {
 
     // MARK: Local mutations (not yet synced; the next sync that touches the item overwrites them)
 
-    func toggleImportant(_ id: Raindrop.ID) {
-        guard let index = raindrops.firstIndex(where: { $0.id == id }) else { return }
-        raindrops[index].important.toggle()
+    func setImportant(_ ids: some Sequence<Raindrop.ID>, _ important: Bool) {
+        let ids = Set(ids)
+        for index in raindrops.indices where ids.contains(raindrops[index].id) {
+            raindrops[index].important = important
+        }
     }
 }
 
