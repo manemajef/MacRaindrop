@@ -27,105 +27,45 @@ enum CollectionMode: String, CaseIterable, Identifiable {
 
 struct ContentView: View {
     @Environment(LibraryStore.self) private var store
-    @Environment(\.openURL) private var openURL
-    @State private var sidebarSelection: SidebarItem? = .all
-    @State private var selection: Set<Raindrop.ID> = []
-    @State private var columnVisibility: NavigationSplitViewVisibility = .all
-    @State private var searchText = ""
+    @State private var browser = BrowserModel()
     @State private var prompts = ActionPrompts()
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @AppStorage("collectionMode") private var mode: CollectionMode = .cards
     @AppStorage("raindropSort") private var sort: RaindropSort = .newest
     @AppStorage("showInspector") private var showInspector = true
 
     private var raindrops: [Raindrop] {
-        guard let sidebarSelection else { return [] }
-        return store.raindrops(in: sidebarSelection, matching: searchText, sortedBy: sort)
+        guard let location = browser.location else { return [] }
+        return store.raindrops(in: location, matching: browser.searchText, sortedBy: sort)
     }
 
     private var selectedRaindrops: [Raindrop] {
-        selection.compactMap(store.raindrop(id:))
+        browser.selection.compactMap(store.raindrop(id:))
     }
 
     /// The selected raindrop, when exactly one is selected.
     private var selectedRaindrop: Raindrop? {
-        selection.count == 1 ? selection.first.flatMap(store.raindrop(id:)) : nil
+        browser.selection.count == 1 ? browser.selection.first.flatMap(store.raindrop(id:)) : nil
     }
 
     var body: some View {
+        @Bindable var browser = browser
         splitView
-            .focusedSceneValue(\.bookmarkContext, BookmarkContext(raindrops: selectedRaindrops, prompts: prompts))
-            .sheet(item: $prompts.editing) { raindrop in
-                EditRaindropSheet(raindrop: raindrop)
-            }
-            .sheet(item: $prompts.tagging) { request in
-                AddTagsSheet(request: request)
-            }
-            .confirmationDialog(
-                prompts.deletion.map { $0.ids.count == 1 ? "Delete this bookmark immediately?" : "Delete \($0.ids.count) bookmarks immediately?" } ?? "",
-                isPresented: showsDeletion,
-                presenting: prompts.deletion
-            ) { request in
-                Button("Delete", role: .destructive) {
-                    Task { await store.attempt("Couldn't Delete Bookmarks") { try await store.delete(request.ids) } }
-                }
-            } message: { request in
-                Text(request.includesOthers
-                    ? "Bookmarks already in the Trash are deleted for good, and the others move to the Trash. You can't undo this."
-                    : "You can't undo this.")
-            }
             .navigationTitle(title)
             .navigationSubtitle(store.phase == .loaded ? "\(raindrops.count) bookmarks" : "")
-            .searchable(text: $searchText, prompt: "Search \(sidebarSelection.map(store.title(for:)) ?? "Bookmarks")")
+            .searchable(text: $browser.searchText, prompt: "Search \(browser.location.map(store.title(for:)) ?? "Bookmarks")")
             .inspector(isPresented: $showInspector) {
                 inspector
                     .inspectorColumnWidth(min: 260, ideal: 300, max: 400)
             }
-            .onChange(of: sidebarSelection) {
-                selection = []
-                searchText = ""
-            }
             // Bookmarks that leave the list (trashed, moved elsewhere) leave the selection too.
             .onChange(of: raindrops.map(\.id)) { _, visible in
-                selection.formIntersection(visible)
+                browser.selection.formIntersection(visible)
             }
-            .alert(store.writeFailure?.title ?? "", isPresented: showsWriteFailure, presenting: store.writeFailure) { failure in
-                Button("Try Again") { Task { await failure.retry() } }
-                Button("OK", role: .cancel) {}
-            } message: { failure in
-                Text(failure.message)
-            }
-            // Syncing is automatic: at launch, when the app comes forward, when the network
-            // comes back, and every few minutes while the app is active.
-            .task {
-                if store.phase == .idle { await store.load() }
-                while !Task.isCancelled {
-                    try? await Task.sleep(for: .seconds(5 * 60))
-                    if NSApp.isActive { await store.syncIfStale() }
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-                Task { await store.syncIfStale() }
-            }
-            .onChange(of: store.isOnline) { _, isOnline in
-                if isOnline { Task { await store.syncIfStale(olderThan: .zero) } }
-            }
+            .focusedSceneValue(\.bookmarkContext, BookmarkContext(raindrops: selectedRaindrops, prompts: prompts))
+            .presentsPrompts(prompts)
+            .syncsAutomatically()
             .environment(prompts)
-    }
-
-    private var showsDeletion: Binding<Bool> {
-        Binding {
-            prompts.deletion != nil
-        } set: { isPresented in
-            if !isPresented { prompts.deletion = nil }
-        }
-    }
-
-    private var showsWriteFailure: Binding<Bool> {
-        Binding {
-            store.writeFailure != nil
-        } set: { isPresented in
-            if !isPresented { store.writeFailure = nil }
-        }
     }
 
     // MARK: Layout
@@ -137,14 +77,13 @@ struct ContentView: View {
     /// gets the space, which shows up as columns jumping, especially in previews.
     ///
     /// The toolbar goes on the last column. On the split view itself every item collapses
-    /// into the overflow menu; outside `.inspector`, the spacer that keeps the inspector
-    /// button in its own capsule is ignored.
+    /// into the overflow menu; outside `.inspector`, the spacers between groups are ignored.
     @ViewBuilder
     private var splitView: some View {
         switch mode {
         case .list:
             NavigationSplitView(columnVisibility: $columnVisibility) {
-                SidebarView(selection: $sidebarSelection)
+                sidebar
             } content: {
                 collection
                     .navigationSplitViewColumnWidth(min: 260, ideal: 320, max: 440)
@@ -154,7 +93,7 @@ struct ContentView: View {
             }
         case .cards:
             NavigationSplitView(columnVisibility: $columnVisibility) {
-                SidebarView(selection: $sidebarSelection)
+                sidebar
             } detail: {
                 collection
                     .toolbar { toolbar }
@@ -162,16 +101,30 @@ struct ContentView: View {
         }
     }
 
+    /// The same in both modes: ‹ › | view, sort | edit, inspector | search.
+    @ToolbarContentBuilder
+    private var toolbar: some ToolbarContent {
+        HistoryToolbar(browser: browser)
+        ViewOptionsToolbar(mode: $mode, sort: $sort)
+        ToolbarSpacer(.fixed)
+        EditAndInspectorToolbar(selection: selectedRaindrops, isInspectorPresented: $showInspector)
+    }
+
+    private var sidebar: some View {
+        SidebarView(selection: Binding { browser.location } set: { browser.go(to: $0) })
+    }
+
     private var title: String {
         if mode == .list, columnVisibility == .detailOnly, let selectedRaindrop {
             selectedRaindrop.title
         } else {
-            sidebarSelection.map(store.title(for:)) ?? "Raindrop"
+            browser.location.map(store.title(for:)) ?? "Raindrop"
         }
     }
 
     @ViewBuilder
     private var collection: some View {
+        @Bindable var browser = browser
         switch store.phase {
         case .idle, .loading:
             ProgressView()
@@ -185,23 +138,23 @@ struct ContentView: View {
                 Button("Try Again") { Task { await store.load() } }
             }
         case .loaded:
-            if let sidebarSelection {
+            if let location = browser.location {
                 Group {
                     switch mode {
-                    case .list: RaindropListView(raindrops: raindrops, selection: $selection)
-                    case .cards: RaindropGridView(raindrops: raindrops, selection: $selection)
+                    case .list: RaindropListView(raindrops: raindrops, selection: $browser.selection)
+                    case .cards: RaindropGridView(raindrops: raindrops, selection: $browser.selection)
                     }
                 }
-                // A fresh list per sidebar item. Diffing one AppKit outline into a completely
+                // A fresh list per location. Diffing one AppKit outline into a completely
                 // different set of rows while its selection is cleared trips a SwiftUI assertion
                 // (`ViewListTree.visitItem`), which crashed both the app and the live preview.
-                .id(sidebarSelection)
+                .id(location)
                 .overlay {
                     if raindrops.isEmpty {
-                        if searchText.isEmpty {
+                        if browser.searchText.isEmpty {
                             ContentUnavailableView("No Bookmarks", systemImage: "bookmark", description: Text("Nothing saved here yet."))
                         } else {
-                            ContentUnavailableView.search(text: searchText)
+                            ContentUnavailableView.search(text: browser.searchText)
                         }
                     }
                 }
@@ -231,81 +184,11 @@ struct ContentView: View {
 
     @ViewBuilder
     private var noSelection: some View {
-        if selection.count > 1 {
-            ContentUnavailableView("\(selection.count) Bookmarks Selected", systemImage: "square.stack")
+        if browser.selection.count > 1 {
+            ContentUnavailableView("\(browser.selection.count) Bookmarks Selected", systemImage: "square.stack")
         } else {
             ContentUnavailableView("No Bookmark Selected", systemImage: "bookmark")
         }
-    }
-
-    // MARK: Toolbar
-
-    /// Laid out left to right: view switch | sort | share, open | edit, inspector, then
-    /// search, which macOS always puts last. Items next to each other share one glass capsule
-    /// unless a fixed `ToolbarSpacer` separates them. Syncing has no button: it's automatic,
-    /// with a manual trigger in the Debug menu.
-    @ToolbarContentBuilder
-    private var toolbar: some ToolbarContent {
-        ToolbarItem {
-            Picker("View", selection: $mode) {
-                ForEach(CollectionMode.allCases) { mode in
-                    Label(mode.label, systemImage: mode.systemImage).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
-            .help("Show bookmarks as a list or as cards")
-        }
-
-        ToolbarItem {
-            Menu("Sort", systemImage: "arrow.up.arrow.down") {
-                Picker("Sort", selection: $sort) {
-                    ForEach(RaindropSort.allCases) { Text($0.label).tag($0) }
-                }
-                .pickerStyle(.inline)
-            }
-        }
-
-        ToolbarSpacer(.flexible)
-       
-       
-        
-        
-        if (selectedRaindrop?.url) != nil {
-
-            ToolbarItemGroup {
-               
-                if let url = selectedRaindrop?.url {
-                    ShareLink(item: url)
-                }
-                
-                
-                Button("Open in Browser", systemImage: "safari") {
-                    selectedRaindrops.compactMap(\.url).forEach { openURL($0) }
-                }
-                    .disabled(selectedRaindrops.allSatisfy { $0.url == nil })
-                
-            }
-            ToolbarSpacer(.fixed)
-
-        }
-        
-        ToolbarItem {
-            Button("Edit", systemImage: "pencil") {
-                prompts.editing = selectedRaindrop
-            }
-            .disabled(selectedRaindrop.map { !store.canModify([$0.id]) } ?? true)
-            .help(store.isOnline ? "Edit the selected bookmark" : "You're offline")
-        }
-        
-        ToolbarItem {
-            Toggle(isOn: $showInspector){
-                Label("Inspector", systemImage: "info")
-            }
-            .help(showInspector ? "Hide Inspector" : "Show Inspector")
-        }
-
-//        ToolbarSpacer(.fixed)
-        
     }
 }
 

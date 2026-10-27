@@ -72,7 +72,7 @@ final class LibraryStore {
     var simulatesWriteFailures = false
     #endif
 
-    @ObservationIgnored private let service: any RaindropService
+    @ObservationIgnored let service: any RaindropService
     @ObservationIgnored private let cache: LibraryCache
     @ObservationIgnored private lazy var syncEngine = SyncEngine(service: service, cache: cache)
     @ObservationIgnored private let pathMonitor = NWPathMonitor()
@@ -99,7 +99,7 @@ final class LibraryStore {
     }
 
     /// Runs `operation` after every sync and write queued before it.
-    private func enqueue<T>(_ operation: @escaping () async throws -> T) async throws -> T {
+    func enqueue<T>(_ operation: @escaping () async throws -> T) async throws -> T {
         let previous = lastOperation
         let task = Task {
             await previous?.value
@@ -157,174 +157,12 @@ final class LibraryStore {
         phase = .loaded
     }
 
-    // MARK: Lookups
-
-    func collection(id: RaindropCollection.ID) -> RaindropCollection? {
-        collections.first { $0.id == id }
-    }
-
-    func raindrop(id: Raindrop.ID) -> Raindrop? {
-        raindrops.first { $0.id == id }
-    }
-
-    func title(for item: SidebarItem) -> String {
-        switch item {
-        case .all: "All Bookmarks"
-        case .unsorted: "Unsorted"
-        case .important: "Favorites"
-        case .trash: "Trash"
-        case .collection(let id): collection(id: id)?.title ?? "Collection"
-        case .tag(let tag): "#\(tag)"
-        }
-    }
-
-    var collectionTree: [CollectionNode] {
-        let byParent = Dictionary(grouping: collections, by: \.parentID)
-        func nodes(under parent: Int?) -> [CollectionNode] {
-            (byParent[parent] ?? [])
-                .sorted { ($0.sort, $0.title) < ($1.sort, $1.title) }
-                .map { collection in
-                    let children = nodes(under: collection.id)
-                    return CollectionNode(collection: collection, children: children.isEmpty ? nil : children)
-                }
-        }
-        return nodes(under: nil)
-    }
-
-    /// Every tag in use, with how many raindrops carry it, most used first.
-    var tags: [(name: String, count: Int)] {
-        let counts = raindrops.filter { !$0.removed }.flatMap(\.tags).reduce(into: [:]) { $0[$1, default: 0] += 1 }
-        return counts
-            .map { (name: $0.key, count: $0.value) }
-            .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
-    }
-
-    func raindrops(in item: SidebarItem, matching query: String = "", sortedBy sort: RaindropSort = .newest) -> [Raindrop] {
-        let scoped = raindrops.filter { raindrop in
-            let inTrash = raindrop.isInTrash
-            switch item {
-            case .trash: return inTrash
-            case _ where inTrash: return false
-            case .all: return true
-            case .unsorted: return raindrop.collectionID == SystemCollectionID.unsorted
-            case .important: return raindrop.important
-            case .collection(let id): return raindrop.collectionID == id
-            case .tag(let tag): return raindrop.tags.contains(tag)
-            }
-        }
-        let query = query.trimmingCharacters(in: .whitespaces)
-        let matched = query.isEmpty ? scoped : scoped.filter { raindrop in
-            [raindrop.title, raindrop.excerpt, raindrop.note, raindrop.domain]
-                .contains { $0.localizedStandardContains(query) }
-                || raindrop.tags.contains { $0.localizedStandardContains(query) }
-        }
-        return matched.sorted(by: sort.areInIncreasingOrder)
-    }
-
-    func count(for item: SidebarItem) -> Int {
-        raindrops(in: item).count
-    }
-
-    func canModify(_ ids: some Sequence<Raindrop.ID>) -> Bool {
-        canWrite && pendingIDs.isDisjoint(with: ids)
-    }
-
-    // MARK: Writes
-    //
-    // Every write goes to the server first. Only the server's answer changes the cache and
-    // what's on screen, so nothing ever looks saved that wasn't. A failed write throws and
-    // changes nothing; `attempt` turns that into `writeFailure` for buttons and menus.
-
-    /// Runs a write started from a button or menu. A failure becomes `writeFailure`, with Try Again.
-    func attempt(_ failureTitle: String, _ write: @escaping () async throws -> Void) async {
-        do {
-            try await write()
-        } catch {
-            writeFailure = WriteFailure(title: failureTitle, message: error.localizedDescription) { [weak self] in
-                await self?.attempt(failureTitle, write)
-            }
-        }
-    }
-
-    /// Fetches the server's current copy of a raindrop, stores it, and returns it.
-    func refresh(_ id: Raindrop.ID) async throws -> Raindrop {
-        try await enqueue {
-            let latest = try await self.service.fetchRaindrop(id: id)
-            try self.apply([latest])
-            return latest
-        }
-    }
-
-    /// Saves edits to one raindrop. Only the fields set in `changes` are sent.
-    func edit(_ id: Raindrop.ID, with changes: RaindropChanges) async throws {
-        try await update([id], with: changes)
-    }
-
-    func setImportant(_ ids: some Sequence<Raindrop.ID>, _ important: Bool) async throws {
-        try await update(Array(ids), with: RaindropChanges(important: important))
-    }
-
-    /// Moves raindrops into a collection. Moving them out of the Trash restores them.
-    func move(_ ids: some Sequence<Raindrop.ID>, to collectionID: RaindropCollection.ID) async throws {
-        let ids = ids.filter { raindrop(id: $0)?.collectionID != collectionID }
-        try await update(ids, with: RaindropChanges(collectionID: collectionID))
-    }
-
-    func addTags(_ tags: [String], to ids: some Sequence<Raindrop.ID>) async throws {
-        let ids = Array(ids)
-        // A single update replaces the tag list, while the bulk endpoint appends to it.
-        if ids.count == 1, let raindrop = raindrop(id: ids[0]) {
-            try await update(ids, with: RaindropChanges(tags: raindrop.tags + tags.filter { !raindrop.tags.contains($0) }))
-        } else {
-            try await update(ids, with: RaindropChanges(tags: tags))
-        }
-    }
-
-    /// Moves raindrops to the Trash, and deletes the ones already there for good.
-    /// The UI asks before deleting anything from the Trash.
-    func delete(_ ids: some Sequence<Raindrop.ID>) async throws {
-        try await writing(Array(ids)) { targets in
-            for (inTrash, group) in Dictionary(grouping: targets, by: \.isInTrash) {
-                let collections = inTrash
-                    ? [SystemCollectionID.trash: group]
-                    : Dictionary(grouping: group, by: \.collectionID)
-                for (collectionID, raindrops) in collections {
-                    try await self.service.removeRaindrops(ids: raindrops.map(\.id), inCollection: collectionID)
-                    if inTrash {
-                        try self.forget(raindrops.map(\.id))
-                    } else {
-                        try self.apply(raindrops.map(RaindropChanges(collectionID: SystemCollectionID.trash).applied(to:)))
-                    }
-                }
-            }
-        }
-        await sync()
-    }
-
-    /// Sends `changes` for one raindrop with `PUT /raindrop/{id}`, or for several with the bulk
-    /// endpoint, once per collection since it can't span them.
-    private func update(_ ids: [Raindrop.ID], with changes: RaindropChanges) async throws {
-        let usedBulk = try await writing(ids) { targets in
-            if ids.count == 1 {
-                let updated = try await self.service.updateRaindrop(id: targets[0].id, changes: changes)
-                try self.apply([updated])
-                return false
-            }
-            // Each confirmed group is applied right away, so a later group failing doesn't hide it.
-            for (collectionID, group) in Dictionary(grouping: targets, by: \.collectionID) {
-                try await self.service.updateRaindrops(ids: group.map(\.id), inCollection: collectionID, changes: changes)
-                try self.apply(group.map(changes.applied(to:)))
-            }
-            return true
-        }
-        // The bulk endpoint only confirms the change, so fetch the server's copies (tags, `lastUpdate`).
-        if usedBulk == true { await sync() }
-    }
+    // MARK: Write primitives
 
     /// Marks the raindrops pending, runs `write` on the queue for those not already pending,
     /// then clears them. Returns nil when there was nothing to write.
     @discardableResult
-    private func writing<T>(_ ids: [Raindrop.ID], _ write: @escaping ([Raindrop]) async throws -> T) async throws -> T? {
+    func writing<T>(_ ids: [Raindrop.ID], _ write: @escaping ([Raindrop]) async throws -> T) async throws -> T? {
         let targets = ids.compactMap(raindrop(id:)).filter { !pendingIDs.contains($0.id) }
         guard !targets.isEmpty else { return nil }
         let targetIDs = Set(targets.map(\.id))
@@ -337,7 +175,7 @@ final class LibraryStore {
     }
 
     /// Stores raindrops as the server returned (or confirmed) them, and shows them.
-    private func apply(_ updated: [Raindrop]) throws {
+    func apply(_ updated: [Raindrop]) throws {
         try cache.upsertRaindrops(updated)
         try cache.save()
         for raindrop in updated {
@@ -350,7 +188,7 @@ final class LibraryStore {
     }
 
     /// Drops raindrops the server deleted for good.
-    private func forget(_ ids: [Raindrop.ID]) throws {
+    func forget(_ ids: [Raindrop.ID]) throws {
         try cache.deleteRaindrops(ids)
         try cache.save()
         raindrops.removeAll { ids.contains($0.id) }
@@ -368,14 +206,6 @@ private struct SimulatedWriteFailure: LocalizedError {
     var errorDescription: String? { "Simulated failure (Debug › Simulate Write Failures). Nothing was sent." }
 }
 #endif
-
-/// A write the server didn't accept, with a way to try it again.
-struct WriteFailure: Identifiable {
-    let id = UUID()
-    let title: String
-    let message: String
-    let retry: () async -> Void
-}
 
 extension LibraryStore {
     /// A store filled synchronously from the bundled sample data, for previews.

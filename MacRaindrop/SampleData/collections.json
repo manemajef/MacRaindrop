@@ -250,6 +250,131 @@
         "draggable": true
       },
       "author": true
+    },
+    {
+      "_id": 80000001,
+      "title": "Mac Utilities",
+      "description": "",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "public": false,
+      "view": "grid",
+      "count": 2,
+      "cover": [],
+      "sort": 0,
+      "expanded": true,
+      "creatorRef": { "_id": 2538886, "name": "rotem-semah", "email": "" },
+      "lastAction": "2026-10-26T09:43:22.655Z",
+      "created": "2026-10-26T08:58:23.733Z",
+      "lastUpdate": "2026-10-26T10:00:38.856Z",
+      "parent": { "$ref": "collections", "$id": 76403968 },
+      "slug": "mac-utilities",
+      "access": {
+        "for": 2538886,
+        "level": 4,
+        "root": false,
+        "draggable": true
+      },
+      "author": true
+    },
+    {
+      "_id": 80000002,
+      "title": "Window Managers",
+      "description": "",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "public": false,
+      "view": "grid",
+      "count": 1,
+      "cover": [],
+      "sort": 1,
+      "expanded": true,
+      "creatorRef": { "_id": 2538886, "name": "rotem-semah", "email": "" },
+      "lastAction": "2026-10-26T09:43:22.655Z",
+      "created": "2026-10-26T08:58:23.733Z",
+      "lastUpdate": "2026-10-26T10:00:38.856Z",
+      "parent": { "$ref": "collections", "$id": 80000001 },
+      "slug": "window-managers",
+      "access": {
+        "for": 2538886,
+        "level": 4,
+        "root": false,
+        "draggable": true
+      },
+      "author": true
+    },
+    {
+      "_id": 80000003,
+      "title": "Swift",
+      "description": "",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "public": false,
+      "view": "grid",
+      "count": 1,
+      "cover": [],
+      "sort": 2,
+      "expanded": true,
+      "creatorRef": { "_id": 2538886, "name": "rotem-semah", "email": "" },
+      "lastAction": "2026-10-26T09:43:22.655Z",
+      "created": "2026-10-26T08:58:23.733Z",
+      "lastUpdate": "2026-10-26T10:00:38.856Z",
+      "parent": { "$ref": "collections", "$id": 59250730 },
+      "slug": "swift",
+      "access": {
+        "for": 2538886,
+        "level": 4,
+        "root": false,
+        "draggable": true
+      },
+      "author": true
+    },
+    {
+      "_id": 80000004,
+      "title": "SwiftUI",
+      "description": "",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "public": false,
+      "view": "grid",
+      "count": 1,
+      "cover": [],
+      "sort": 3,
+      "expanded": true,
+      "creatorRef": { "_id": 2538886, "name": "rotem-semah", "email": "" },
+      "lastAction": "2026-10-26T09:43:22.655Z",
+      "created": "2026-10-26T08:58:23.733Z",
+      "lastUpdate": "2026-10-26T10:00:38.856Z",
+      "parent": { "$ref": "collections", "$id": 80000003 },
+      "slug": "swiftui",
+      "access": {
+        "for": 2538886,
+        "level": 4,
+        "root": false,
+        "draggable": true
+      },
+      "author": true
+    },
+    {
+      "_id": 80000005,
+      "title": "Travel",
+      "description": "",
+      "user": { "$ref": "users", "$id": 2538886 },
+      "public": false,
+      "view": "grid",
+      "count": 0,
+      "cover": [],
+      "sort": 4,
+      "expanded": true,
+      "creatorRef": { "_id": 2538886, "name": "rotem-semah", "email": "" },
+      "lastAction": "2026-10-26T09:43:22.655Z",
+      "created": "2026-10-26T08:58:23.733Z",
+      "lastUpdate": "2026-10-26T10:00:38.856Z",
+      "parent": { "$ref": "collections", "$id": 76404692 },
+      "slug": "travel",
+      "access": {
+        "for": 2538886,
+        "level": 4,
+        "root": false,
+        "draggable": true
+      },
+      "author": true
     }
   ]
 }
