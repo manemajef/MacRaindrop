@@ -2,14 +2,15 @@
 
 A native SwiftUI client for [Raindrop.io](https://raindrop.io) bookmarks on macOS.
 
-![MacRaindrop](docs/screenshot.png)
+![MacRaindrop in cards mode](docs/grid.png)
+![MacRaindrop in list mode](docs/list.png)
 
 ## Features
 
 - Sidebar with All, Unsorted, Favorites, Trash, nested collections and tags
-- Searchable, sortable bookmark list; double-click opens a bookmark in your browser
-- The bookmarked page itself in a built-in web view, with details (note, tags, highlights, info) in an inspector
-- Hiding the sidebar also hides the list, leaving just the page
+- Two modes: a cards grid, or a list with the bookmarked page in a built-in web view
+- Cards select like Finder icons (click, ⌘/⇧-click, rubber band, arrow keys) and drag out as links; double-click opens a bookmark in your browser
+- Searchable and sortable in both modes, with details (note, tags, highlights, info) in an inspector
 - Local SwiftData cache, so the library appears instantly at launch
 - Incremental sync: nothing is fetched when the server reports no changes, only recent changes otherwise, and a full refetch when something was deleted
 

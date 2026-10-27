@@ -2,24 +2,25 @@ import SwiftUI
 
 /// How a collection's bookmarks are shown.
 enum CollectionMode: String, CaseIterable, Identifiable {
-    /// Sidebar, bookmark list, and the selected page in a web view.
-    case list
     /// Sidebar and a grid of cards; double-clicking a card opens it in the browser.
     case cards
+    
+    /// Sidebar, bookmark list, and the selected page in a web view.
+    case list
 
     var id: Self { self }
 
     var label: String {
         switch self {
-        case .list: "List"
         case .cards: "Cards"
+        case .list: "List"
         }
     }
 
     var systemImage: String {
         switch self {
-        case .list: "list.bullet"
         case .cards: "square.grid.2x2"
+        case .list: "list.bullet"
         }
     }
 }
@@ -31,7 +32,7 @@ struct ContentView: View {
     @State private var selection: Set<Raindrop.ID> = []
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var searchText = ""
-    @AppStorage("collectionMode") private var mode: CollectionMode = .list
+    @AppStorage("collectionMode") private var mode: CollectionMode = .cards
     @AppStorage("raindropSort") private var sort: RaindropSort = .newest
     @AppStorage("showInspector") private var showInspector = true
 
@@ -214,9 +215,31 @@ struct ContentView: View {
             }
         }
 
-        ToolbarSpacer(.fixed)
+        ToolbarSpacer(.flexible)
+       
+       
+        
+        
+        if (selectedRaindrop?.url) != nil {
 
-        ToolbarItemGroup {
+            ToolbarItemGroup {
+               
+                if let url = selectedRaindrop?.url {
+                    ShareLink(item: url)
+                }
+                
+                
+                Button("Open in Browser", systemImage: "safari") {
+                    selectedRaindrops.compactMap(\.url).forEach { openURL($0) }
+                }
+                    .disabled(selectedRaindrops.allSatisfy { $0.url == nil })
+                
+            }
+            ToolbarSpacer(.fixed)
+
+        }
+        
+        ToolbarItem{
             Button {
                 store.setImportant(selection, !selectedRaindrops.allSatisfy(\.important))
             } label: {
@@ -224,27 +247,18 @@ struct ContentView: View {
                 Label("Favorite", systemImage: isFavorite ? "heart.fill" : "heart")
             }
             .disabled(selection.isEmpty)
-
-            Button("Open in Browser", systemImage: "safari") {
-                selectedRaindrops.compactMap(\.url).forEach { openURL($0) }
-            }
-            .disabled(selectedRaindrops.allSatisfy { $0.url == nil })
-
-            if let url = selectedRaindrop?.url {
-                ShareLink(item: url)
-            }
+            
         }
-
-        ToolbarSpacer(.fixed)
-
+        
         ToolbarItem {
-            Button {
-                showInspector.toggle()
-            } label: {
-                Label("Inspector", systemImage: "sidebar.trailing")
+            Toggle(isOn: $showInspector){
+                Label("Inspector", systemImage: "info")
             }
             .help(showInspector ? "Hide Inspector" : "Show Inspector")
         }
+
+//        ToolbarSpacer(.fixed)
+        
     }
 }
 

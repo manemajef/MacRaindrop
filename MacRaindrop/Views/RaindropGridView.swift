@@ -17,9 +17,9 @@ struct RaindropGridView: View {
     @State private var rubberBand: RubberBand?
     @FocusState private var isFocused: Bool
 
-    private static let minCardWidth: CGFloat = 220
-    private static let spacing: CGFloat = 16
-    private static let padding: CGFloat = 20
+    private static let minCardWidth: CGFloat = 180
+    private static let spacing: CGFloat = 8
+    private static let padding: CGFloat = 16
     private static let coordinateSpace = "RaindropGrid"
 
     private var columnCount: Int {
