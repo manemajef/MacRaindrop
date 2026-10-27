@@ -91,12 +91,10 @@ struct RaindropActions: View {
             if let url = urls.first, urls.count == 1 {
                 ShareLink(item: url)
             }
-            #if os(macOS)
             Button(urls.count == 1 ? "Copy Link" : "Copy \(urls.count) Links", systemImage: "doc.on.doc") {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(urls.map(\.absoluteString).joined(separator: "\n"), forType: .string)
             }
-            #endif
             Divider()
         }
         if !raindrops.isEmpty {

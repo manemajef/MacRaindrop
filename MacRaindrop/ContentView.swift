@@ -80,10 +80,11 @@ struct ContentView: View {
                 SidebarView(selection: $sidebarSelection)
             } content: {
                 collection
-                    .navigationSplitViewColumnWidth(min: 280, ideal: 360, max: 560)
+                    .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 560)
             } detail: {
                 detail
                     .toolbar { toolbar }
+                    .navigationSplitViewColumnWidth(min: 400, ideal: 800, max: .infinity)
             }
         case .cards:
             NavigationSplitView(columnVisibility: $columnVisibility) {
@@ -223,6 +224,8 @@ struct ContentView: View {
                 ShareLink(item: url)
             }
         }
+
+        ToolbarSpacer(.fixed)
 
         ToolbarItem {
             Button {

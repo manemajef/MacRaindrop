@@ -211,8 +211,8 @@ struct RaindropCard: View {
             Color.clear
                 .aspectRatio(16 / 10, contentMode: .fit)
                 .overlay { CoverImage(url: raindrop.coverURL, kind: raindrop.type) }
-                .clipShape(.rect(cornerRadius: 8))
-                .padding(6)
+                // Only trims the filled image to its frame; the card's shape rounds the top corners.
+                .clipped()
 
             VStack(alignment: .leading, spacing: 5) {
                 Text(raindrop.title)
@@ -240,7 +240,8 @@ struct RaindropCard: View {
             .padding(.top, 4)
             .padding(.bottom, 10)
         }
-        .background(.background.secondary, in: .rect(cornerRadius: 12))
+        .background(.background.secondary)
+        .clipShape(.rect(cornerRadius: 12))
         .overlay {
             RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.separator), lineWidth: isSelected ? 3 : 1)
