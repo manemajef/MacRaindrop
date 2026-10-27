@@ -151,6 +151,9 @@ struct ContentView: View {
                 Text(message)
             } actions: {
                 Button("Try Again") { Task { await store.load() } }
+                if store.service is RaindropAPIService {
+                    SettingsLink { Text("Change Token…") }
+                }
             }
         case .loaded:
             if let location = browser.location {

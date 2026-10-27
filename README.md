@@ -20,16 +20,15 @@ A native SwiftUI client for [Raindrop.io](https://raindrop.io) bookmarks on macO
 
 Requires Xcode 27 and macOS 27.2 or later.
 
-Without a token, the app shows the bundled sample data in `MacRaindrop/SampleData`.
+On first launch the app asks for a test token, which you create in Raindrop's [integration settings](https://app.raindrop.io/settings/integrations) ([how](https://developer.raindrop.io/v1/authentication/token)). It's saved in the app's user defaults; replace or remove it in Settings (⌘,). Debug builds also offer the bundled sample data in `MacRaindrop/SampleData`.
 
-To use your own library, create a test token in Raindrop's [integration settings](https://app.raindrop.io/settings/integrations) and provide it as `RAINDROP_TEST`:
+A `RAINDROP_TEST` environment variable wins over the saved token, for pointing a scheme at another account (Edit Scheme → Run → Arguments → Environment Variables).
 
-- In Xcode: Edit Scheme → Run → Arguments → Environment Variables.
-- Or launch a built app from the terminal:
+To build Release and replace the copy in `/Applications` (relaunching it if it was open):
 
-  ```bash
-  open --env RAINDROP_TEST="$RAINDROP_TEST" MacRaindrop.app
-  ```
+```bash
+scripts/install.sh
+```
 
 ## Known issue
 

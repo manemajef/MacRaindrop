@@ -146,6 +146,11 @@ final class LibraryStore {
         }
     }
 
+    /// Forgets the cached library. The store isn't used afterwards: the app makes a new one.
+    func clearCache() {
+        try? cache.removeAll()
+    }
+
     private func reloadFromCache() {
         guard let collections = try? cache.collections(),
               let raindrops = try? cache.raindrops(),

@@ -13,7 +13,7 @@ nonisolated struct RaindropAPIService: RaindropService {
 
         var errorDescription: String? {
             switch self {
-            case .unauthorized: "Raindrop rejected the access token. Check RAINDROP_TEST."
+            case .unauthorized: "Raindrop rejected the access token. Paste a new one in Settings."
             case .rateLimited: "Raindrop's rate limit was hit. Try again in a minute."
             case .rejected(let reason): reason ?? "Raindrop didn't accept the change."
             case .http(let status): "Raindrop returned HTTP \(status)."

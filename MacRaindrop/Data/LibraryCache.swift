@@ -101,6 +101,14 @@ final class LibraryCache {
 
     // MARK: Writing
 
+    /// Empties the cache, for when the token (and so maybe the account) changes.
+    func removeAll() throws {
+        try context.delete(model: CachedRaindrop.self)
+        try context.delete(model: CachedCollection.self)
+        try context.delete(model: SyncState.self)
+        try context.save()
+    }
+
     func replaceCollections(_ collections: [RaindropCollection]) throws {
         try context.delete(model: CachedCollection.self)
         for collection in collections {

@@ -40,14 +40,26 @@ nonisolated extension RaindropService {
 
 nonisolated enum RaindropServices {
     static let tokenEnvironmentKey = "RAINDROP_TEST"
+    /// Where the token pasted into the app is kept. Plain user defaults: it's a personal test token.
+    static let tokenDefaultsKey = "raindropTestToken"
+    /// Raindrop's guide to creating a test token.
+    static let tokenHelpURL = URL(string: "https://developer.raindrop.io/v1/authentication/token")!
+    /// Where test tokens are created.
+    static let integrationsURL = URL(string: "https://app.raindrop.io/settings/integrations")!
 
-    /// The live API when a test token is in the environment, otherwise the bundled sample data.
-    static func makeDefault(environment: [String: String] = ProcessInfo.processInfo.environment) -> any RaindropService {
-        if let token = environment[tokenEnvironmentKey], !token.isEmpty {
-            RaindropAPIService(token: token)
-        } else {
-            SampleDataService()
-        }
+    /// The token in the environment (so a scheme can override it), otherwise the one saved in the app.
+    static func token(
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        defaults: UserDefaults = .standard
+    ) -> String? {
+        [environment[tokenEnvironmentKey], defaults.string(forKey: tokenDefaultsKey)]
+            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first { !$0.isEmpty }
+    }
+
+    /// The live API when there's a token, otherwise nil: the app then asks for one.
+    static func makeDefault() -> (any RaindropService)? {
+        token().map { RaindropAPIService(token: $0) }
     }
 }
 
