@@ -25,6 +25,8 @@ nonisolated protocol RaindropService: Sendable {
     ///
     /// The server returns no items, and doesn't accept `SystemCollectionID.all` here.
     func updateRaindrops(ids: [Raindrop.ID], inCollection collectionID: Int, changes: RaindropChanges) async throws
+    /// `PUT /collection/{id}`: changes one collection and returns the server's copy of it.
+    func updateCollection(id: RaindropCollection.ID, changes: CollectionChanges) async throws -> RaindropCollection
     /// `DELETE /raindrops/{collectionId}`: moves raindrops in `collectionID` to the Trash, or
     /// deletes them for good when `collectionID` is the Trash.
     func removeRaindrops(ids: [Raindrop.ID], inCollection collectionID: Int) async throws
@@ -80,7 +82,11 @@ nonisolated struct SampleDataService: RaindropService {
     }
 
     func fetchCollections() async throws -> [RaindropCollection] {
-        try loadCollections()
+        try await library.collections(from: self)
+    }
+
+    func updateCollection(id: RaindropCollection.ID, changes: CollectionChanges) async throws -> RaindropCollection {
+        try await library.update(collection: id, changes: changes, from: self)
     }
 
     func fetchRaindrops(collectionID: Int, changedSince: Date?) async throws -> [Raindrop] {
@@ -135,6 +141,23 @@ nonisolated struct SampleDataService: RaindropService {
 /// The sample raindrops in memory, loaded from the bundle on first use.
 private actor SampleLibrary {
     private var raindrops: [Raindrop]?
+    private var collections: [RaindropCollection]?
+
+    func collections(from service: SampleDataService) throws -> [RaindropCollection] {
+        if let collections { return collections }
+        let loaded = try service.loadCollections()
+        collections = loaded
+        return loaded
+    }
+
+    func update(collection id: RaindropCollection.ID, changes: CollectionChanges, from service: SampleDataService) throws -> RaindropCollection {
+        var all = try collections(from: service)
+        guard let index = all.firstIndex(where: { $0.id == id }) else { throw URLError(.fileDoesNotExist) }
+        all[index] = changes.applied(to: all[index])
+        all[index].lastUpdate = .now
+        collections = all
+        return all[index]
+    }
 
     func raindrops(from service: SampleDataService) throws -> [Raindrop] {
         if let raindrops { return raindrops }

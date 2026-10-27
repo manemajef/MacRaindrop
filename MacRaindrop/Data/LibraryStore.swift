@@ -194,7 +194,18 @@ final class LibraryStore {
         raindrops.removeAll { ids.contains($0.id) }
     }
 
-    private func failIfSimulating() throws {
+    /// Stores a collection as the server returned it, and shows it.
+    func apply(_ collection: RaindropCollection) throws {
+        try cache.upsertCollection(collection)
+        try cache.save()
+        if let index = collections.firstIndex(where: { $0.id == collection.id }) {
+            collections[index] = collection
+        } else {
+            collections.append(collection)
+        }
+    }
+
+    func failIfSimulating() throws {
         #if DEBUG
         if simulatesWriteFailures { throw SimulatedWriteFailure() }
         #endif

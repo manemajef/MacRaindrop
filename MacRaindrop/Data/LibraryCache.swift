@@ -108,6 +108,15 @@ final class LibraryCache {
         }
     }
 
+    func upsertCollection(_ collection: RaindropCollection) throws {
+        let id = collection.id
+        if let record = try context.fetch(FetchDescriptor<CachedCollection>(predicate: #Predicate { $0.id == id })).first {
+            record.payload = try encoder.encode(collection)
+        } else {
+            context.insert(CachedCollection(id: id, payload: try encoder.encode(collection)))
+        }
+    }
+
     func replaceRaindrops(_ raindrops: [Raindrop]) throws {
         try context.delete(model: CachedRaindrop.self)
         for raindrop in raindrops {

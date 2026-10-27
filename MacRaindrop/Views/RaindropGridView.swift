@@ -94,6 +94,8 @@ struct RaindropGridView: View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: Self.spacing)], spacing: Self.spacing) {
             ForEach(folders) { folder in
                 FolderTile(collection: folder, isSelected: selectedFolder == folder.id)
+                    .draggable(CollectionDrag(id: folder.id))
+                    .dropTarget(for: .collection(folder.id))
                     .gesture(TapGesture(count: 2).onEnded { openFolder(folder.id) })
                     .simultaneousGesture(TapGesture().onEnded {
                         isFocused = true
@@ -411,16 +413,6 @@ struct RaindropCard: View {
         }
         .font(.caption)
         .foregroundStyle(.secondary)
-    }
-}
-
-/// What a dragged raindrop becomes outside the app: its URL.
-nonisolated struct RaindropLink: Identifiable, Transferable {
-    let id: Raindrop.ID
-    let url: URL
-
-    static var transferRepresentation: some TransferRepresentation {
-        ProxyRepresentation(exporting: \.url)
     }
 }
 

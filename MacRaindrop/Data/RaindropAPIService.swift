@@ -85,6 +85,12 @@ nonisolated struct RaindropAPIService: RaindropService {
         guard response.result else { throw Failure.rejected(response.errorMessage) }
     }
 
+    func updateCollection(id: RaindropCollection.ID, changes: CollectionChanges) async throws -> RaindropCollection {
+        let response: ItemResponse<RaindropCollection> = try await send("PUT", "collection/\(id)", body: changes)
+        guard response.result else { throw Failure.rejected(nil) }
+        return response.item
+    }
+
     func removeRaindrops(ids: [Raindrop.ID], inCollection collectionID: Int) async throws {
         let response: WriteResponse = try await send("DELETE", "raindrops/\(collectionID)", body: ["ids": ids])
         guard response.result else { throw Failure.rejected(response.errorMessage) }

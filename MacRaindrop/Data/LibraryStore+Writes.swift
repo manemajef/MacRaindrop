@@ -73,6 +73,21 @@ extension LibraryStore {
         await sync()
     }
 
+    /// Moves a collection inside another, or to the top level with `nil`. Moving one into
+    /// itself or into one of its own subcollections does nothing.
+    func moveCollection(_ id: RaindropCollection.ID, into parent: RaindropCollection.ID?) async throws {
+        guard let collection = collection(id: id), collection.parentID != parent else { return }
+        if let parent, parent == id || ancestors(of: parent).contains(id) { return }
+        try await enqueue {
+            try self.failIfSimulating()
+            let updated = try await self.service.updateCollection(
+                id: id,
+                changes: CollectionChanges(parent: parent.map(CollectionChanges.Parent.collection) ?? .root)
+            )
+            try self.apply(updated)
+        }
+    }
+
     /// Sends `changes` for one raindrop with `PUT /raindrop/{id}`, or for several with the bulk
     /// endpoint, once per collection since it can't span them.
     private func update(_ ids: [Raindrop.ID], with changes: RaindropChanges) async throws {

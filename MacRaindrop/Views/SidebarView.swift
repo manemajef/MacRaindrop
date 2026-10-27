@@ -14,10 +14,16 @@ struct SidebarView: View {
                 row(.trash, systemImage: "trash")
             }
 
-            Section("Collections") {
+            Section {
                 ForEach(store.collectionTree) { node in
                     CollectionRow(node: node, expandedCollections: $expandedCollections)
                 }
+            } header: {
+                Text("Collections")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(.rect)
+                    .topLevelCollectionsDropTarget()
+                    .help("Drop a collection here to move it to the top level")
             }
 
             if !store.tags.isEmpty {
@@ -26,6 +32,7 @@ struct SidebarView: View {
                         Label(tag.name, systemImage: "number")
                             .badge(tag.count)
                             .tag(SidebarItem.tag(tag.name))
+                            .dropTarget(for: .tag(tag.name))
                     }
                 }
             }
@@ -56,6 +63,7 @@ struct SidebarView: View {
         Label(store.title(for: item), systemImage: systemImage)
             .badge(store.count(for: item))
             .tag(item)
+            .dropTarget(for: item)
     }
 }
 
@@ -82,6 +90,8 @@ private struct CollectionRow: View {
         Label(node.collection.title, systemImage: node.children == nil ? "folder" : "folder.fill")
             .badge(store.count(for: .collection(node.id)))
             .tag(SidebarItem.collection(node.id))
+            .draggable(CollectionDrag(id: node.id))
+            .dropTarget(for: .collection(node.id))
     }
 
     private var isExpanded: Binding<Bool> {
@@ -131,4 +141,5 @@ private struct SyncStatusView: View {
         Text("Detail")
     }
     .environment(LibraryStore.preview)
+    .environment(ActionPrompts())
 }
