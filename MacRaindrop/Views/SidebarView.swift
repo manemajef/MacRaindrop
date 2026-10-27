@@ -3,6 +3,7 @@ import SwiftUI
 struct SidebarView: View {
     @Environment(LibraryStore.self) private var store
     @Binding var selection: SidebarItem?
+    @Binding var expandedCollections: Set<RaindropCollection.ID>
 
     var body: some View {
         List(selection: $selection) {
@@ -14,8 +15,8 @@ struct SidebarView: View {
             }
 
             Section("Collections") {
-                OutlineGroup(store.collectionTree, children: \.children) { node in
-                    row(.collection(node.id), systemImage: node.children == nil ? "folder" : "folder.fill")
+                ForEach(store.collectionTree) { node in
+                    CollectionRow(node: node, expandedCollections: $expandedCollections)
                 }
             }
 
@@ -58,6 +59,44 @@ struct SidebarView: View {
     }
 }
 
+/// A collection and, inside a disclosure group the app opens and closes, its subcollections.
+/// Unlike `OutlineGroup`, this lets `BrowserModel` keep and set which ones are open.
+private struct CollectionRow: View {
+    @Environment(LibraryStore.self) private var store
+    let node: CollectionNode
+    @Binding var expandedCollections: Set<RaindropCollection.ID>
+
+    var body: some View {
+        if let children = node.children {
+            DisclosureGroup(isExpanded: isExpanded) {
+                ForEach(children) { CollectionRow(node: $0, expandedCollections: $expandedCollections) }
+            } label: {
+                label
+            }
+        } else {
+            label
+        }
+    }
+
+    private var label: some View {
+        Label(node.collection.title, systemImage: node.children == nil ? "folder" : "folder.fill")
+            .badge(store.count(for: .collection(node.id)))
+            .tag(SidebarItem.collection(node.id))
+    }
+
+    private var isExpanded: Binding<Bool> {
+        Binding {
+            expandedCollections.contains(node.id)
+        } set: { isExpanded in
+            if isExpanded {
+                expandedCollections.insert(node.id)
+            } else {
+                expandedCollections.remove(node.id)
+            }
+        }
+    }
+}
+
 private struct SyncStatusView: View {
     @Environment(LibraryStore.self) private var store
 
@@ -87,7 +126,7 @@ private struct SyncStatusView: View {
 
 #Preview {
     NavigationSplitView {
-        SidebarView(selection: .constant(.all))
+        SidebarView(selection: .constant(.all), expandedCollections: .constant([]))
     } detail: {
         Text("Detail")
     }

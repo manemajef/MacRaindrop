@@ -4,14 +4,22 @@ import SwiftUI
 
 /// Bookmarks as a grid of cards that select like Finder icons: click, ⌘-click, ⇧-click,
 /// rubber-band, arrow keys, ⌘A and Esc. Double-click or Return opens the selection in the browser.
+///
+/// Subcollections come first, as folder tiles. A click selects one, and a double-click or
+/// Return opens it.
 struct RaindropGridView: View {
     @Environment(LibraryStore.self) private var store
     @Environment(ActionPrompts.self) private var prompts
     @Environment(\.openURL) private var openURL
     let raindrops: [Raindrop]
     @Binding var selection: Set<Raindrop.ID>
+    var folders: [RaindropCollection] = []
+    var openFolder: (RaindropCollection.ID) -> Void = { _ in }
 
     private var selected: [Raindrop] { raindrops.filter { selection.contains($0.id) } }
+
+    /// A selected folder tile. Folders and bookmarks are never selected together.
+    @State private var selectedFolder: RaindropCollection.ID?
 
     /// Where ⇧-click and ⇧-arrow ranges start, and where plain arrow keys move from.
     @State private var anchor: Raindrop.ID?
@@ -50,7 +58,11 @@ struct RaindropGridView: View {
                 withAnimation(.snappy) { proxy.scrollTo(id) }
             }
             .onKeyPress(.return) {
-                open(selection)
+                if let selectedFolder {
+                    openFolder(selectedFolder)
+                } else {
+                    open(selection)
+                }
                 return .handled
             }
             .onKeyPress(characters: ["a"], phases: .down) { press in
@@ -58,7 +70,10 @@ struct RaindropGridView: View {
                 selection = Set(raindrops.map(\.id))
                 return .handled
             }
-            .onExitCommand { selection = [] }
+            .onExitCommand {
+                selection = []
+                selectedFolder = nil
+            }
             .onDeleteCommand { prompts.delete(selected, in: store) }
             .copyable(selected.compactMap(\.url))
         }
@@ -66,9 +81,35 @@ struct RaindropGridView: View {
         .onAppear { isFocused = true }
     }
 
+    private var grid: some View {
+        VStack(alignment: .leading, spacing: Self.spacing * 2) {
+            if !folders.isEmpty {
+                folderTiles
+            }
+            cards
+        }
+    }
+
+    private var folderTiles: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: Self.spacing)], spacing: Self.spacing) {
+            ForEach(folders) { folder in
+                FolderTile(collection: folder, isSelected: selectedFolder == folder.id)
+                    .gesture(TapGesture(count: 2).onEnded { openFolder(folder.id) })
+                    .simultaneousGesture(TapGesture().onEnded {
+                        isFocused = true
+                        selectedFolder = folder.id
+                        selection = []
+                    })
+                    .contextMenu {
+                        Button("Open", systemImage: "folder") { openFolder(folder.id) }
+                    }
+            }
+        }
+    }
+
     /// Rows of cards rather than a `LazyVGrid`, so every card in a row can stretch to the
     /// tallest one (like `align-items: stretch`). Each row is still created lazily.
-    private var grid: some View {
+    private var cards: some View {
         LazyVStack(alignment: .leading, spacing: Self.spacing) {
             ForEach(rows, id: \.first?.id) { row in
                 HStack(alignment: .top, spacing: Self.spacing) {
@@ -117,6 +158,7 @@ struct RaindropGridView: View {
 
     private func click(_ id: Raindrop.ID) {
         isFocused = true
+        selectedFolder = nil
         let modifiers = NSEvent.modifierFlags
         if modifiers.contains(.command) {
             selection.formSymmetricDifference([id])
@@ -136,6 +178,7 @@ struct RaindropGridView: View {
             .onTapGesture {
                 isFocused = true
                 selection = []
+                selectedFolder = nil
             }
             .gesture(
                 DragGesture(minimumDistance: 4, coordinateSpace: .named(Self.coordinateSpace))
@@ -225,6 +268,49 @@ private struct RubberBand {
             width: abs(current.x - origin.x),
             height: abs(current.y - origin.y)
         )
+    }
+}
+
+/// A subcollection at the top of the grid: its name, and what's inside.
+private struct FolderTile: View {
+    @Environment(LibraryStore.self) private var store
+    let collection: RaindropCollection
+    let isSelected: Bool
+
+    private var summary: String {
+        let bookmarks = store.count(for: .collection(collection.id))
+        let folders = store.subcollections(of: collection.id).count
+        var parts = ["\(bookmarks) bookmark\(bookmarks == 1 ? "" : "s")"]
+        if folders > 0 { parts.append("\(folders) folder\(folders == 1 ? "" : "s")") }
+        return parts.formatted(.list(type: .and, width: .narrow))
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "folder.fill")
+                .font(.title2)
+                .foregroundStyle(.tint)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(collection.title)
+                    .font(.headline)
+                    .lineLimit(1)
+                Text(summary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .background(.background.secondary, in: .rect(cornerRadius: 12))
+        .overlay {
+            if isSelected {
+                RoundedRectangle(cornerRadius: 12).strokeBorder(.tint, lineWidth: 3)
+            }
+        }
+        .contentShape(.rect(cornerRadius: 12))
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 }
 

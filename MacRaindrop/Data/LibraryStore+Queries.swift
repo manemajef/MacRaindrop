@@ -35,6 +35,24 @@ extension LibraryStore {
         return nodes(under: nil)
     }
 
+    /// The collections directly inside `id`, in sidebar order.
+    func subcollections(of id: RaindropCollection.ID) -> [RaindropCollection] {
+        collections
+            .filter { $0.parentID == id }
+            .sorted { ($0.sort, $0.title) < ($1.sort, $1.title) }
+    }
+
+    /// The collections that contain `id`, innermost first.
+    func ancestors(of id: RaindropCollection.ID) -> [RaindropCollection.ID] {
+        var ancestors: [RaindropCollection.ID] = []
+        var parent = collection(id: id)?.parentID
+        while let id = parent, !ancestors.contains(id) {
+            ancestors.append(id)
+            parent = collection(id: id)?.parentID
+        }
+        return ancestors
+    }
+
     /// Every tag in use, with how many raindrops carry it, most used first.
     var tags: [(name: String, count: Int)] {
         let counts = raindrops.filter { !$0.removed }.flatMap(\.tags).reduce(into: [:]) { $0[$1, default: 0] += 1 }

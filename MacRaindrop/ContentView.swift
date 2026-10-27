@@ -39,6 +39,13 @@ struct ContentView: View {
         return store.raindrops(in: location, matching: browser.searchText, sortedBy: sort)
     }
 
+    /// Subcollections of the current collection, shown as folder tiles in cards mode.
+    /// Hidden while searching, since the search covers bookmarks only.
+    private var folders: [RaindropCollection] {
+        guard mode == .cards, browser.searchText.isEmpty, case .collection(let id) = browser.location else { return [] }
+        return store.subcollections(of: id)
+    }
+
     private var selectedRaindrops: [Raindrop] {
         browser.selection.compactMap(store.raindrop(id:))
     }
@@ -62,7 +69,11 @@ struct ContentView: View {
             .onChange(of: raindrops.map(\.id)) { _, visible in
                 browser.selection.formIntersection(visible)
             }
+            .onChange(of: browser.location, initial: true) {
+                browser.revealLocation(in: store)
+            }
             .focusedSceneValue(\.bookmarkContext, BookmarkContext(raindrops: selectedRaindrops, prompts: prompts))
+            .focusedSceneValue(\.browser, browser)
             .presentsPrompts(prompts)
             .syncsAutomatically()
             .environment(prompts)
@@ -111,7 +122,11 @@ struct ContentView: View {
     }
 
     private var sidebar: some View {
-        SidebarView(selection: Binding { browser.location } set: { browser.go(to: $0) })
+        @Bindable var browser = browser
+        return SidebarView(
+            selection: Binding { browser.location } set: { browser.go(to: $0) },
+            expandedCollections: $browser.expandedCollections
+        )
     }
 
     private var title: String {
@@ -142,7 +157,10 @@ struct ContentView: View {
                 Group {
                     switch mode {
                     case .list: RaindropListView(raindrops: raindrops, selection: $browser.selection)
-                    case .cards: RaindropGridView(raindrops: raindrops, selection: $browser.selection)
+                    case .cards:
+                        RaindropGridView(raindrops: raindrops, selection: $browser.selection, folders: folders) { id in
+                            browser.go(to: .collection(id))
+                        }
                     }
                 }
                 // A fresh list per location. Diffing one AppKit outline into a completely
@@ -150,7 +168,7 @@ struct ContentView: View {
                 // (`ViewListTree.visitItem`), which crashed both the app and the live preview.
                 .id(location)
                 .overlay {
-                    if raindrops.isEmpty {
+                    if raindrops.isEmpty, folders.isEmpty {
                         if browser.searchText.isEmpty {
                             ContentUnavailableView("No Bookmarks", systemImage: "bookmark", description: Text("Nothing saved here yet."))
                         } else {

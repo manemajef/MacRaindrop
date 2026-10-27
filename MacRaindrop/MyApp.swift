@@ -10,6 +10,7 @@ import SwiftUI
         }
         .defaultSize(width: 1280, height: 800)
         .commands {
+            GoCommands(store: store)
             BookmarkCommands(store: store)
             #if DEBUG
             CommandMenu("Debug") {

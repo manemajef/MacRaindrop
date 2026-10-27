@@ -9,6 +9,9 @@ final class BrowserModel {
     private var forwardStack: [SidebarItem] = []
     var selection: Set<Raindrop.ID> = []
     var searchText = ""
+    /// Collections open in the sidebar. Kept here rather than in the sidebar, so switching
+    /// between list and cards (which rebuilds the sidebar) doesn't collapse them.
+    var expandedCollections: Set<RaindropCollection.ID> = []
 
     var canGoBack: Bool { !backStack.isEmpty }
     var canGoForward: Bool { !forwardStack.isEmpty }
@@ -25,6 +28,18 @@ final class BrowserModel {
         guard let previous = backStack.popLast() else { return }
         if let location { forwardStack.append(location) }
         show(previous)
+    }
+
+    /// The collection containing the current one, for Go › Enclosing Folder.
+    func enclosingCollection(in store: LibraryStore) -> RaindropCollection.ID? {
+        guard case .collection(let id) = location else { return nil }
+        return store.collection(id: id)?.parentID
+    }
+
+    /// Opens the parents of the current collection in the sidebar, so its row is visible.
+    func revealLocation(in store: LibraryStore) {
+        guard case .collection(let id) = location else { return }
+        expandedCollections.formUnion(store.ancestors(of: id))
     }
 
     func goForward() {
