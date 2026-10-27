@@ -100,3 +100,15 @@ nonisolated extension JSONDecoder {
         return decoder
     }
 }
+
+/// The envelope single-item endpoints return: `{ "result": true, "item": {...} }`.
+nonisolated struct ItemResponse<Item: Decodable & Sendable>: Decodable, Sendable {
+    var result: Bool
+    var item: Item
+}
+
+/// What write endpoints without an item return: `{ "result": true }`, or `false` with a reason.
+nonisolated struct WriteResponse: Decodable, Sendable {
+    var result: Bool
+    var errorMessage: String?
+}

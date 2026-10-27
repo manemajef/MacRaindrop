@@ -30,14 +30,25 @@ struct SidebarView: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            SyncStatusView()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                .background(.bar)
+            if showsSyncStatus {
+                SyncStatusView()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    .background(.bar)
+            }
         }
         .navigationTitle("Raindrop")
         .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
+    }
+
+    /// Sync details are for debugging. Release builds only mention it when something is wrong.
+    private var showsSyncStatus: Bool {
+        #if DEBUG
+        true
+        #else
+        !store.isOnline || store.syncError != nil
+        #endif
     }
 
     private func row(_ item: SidebarItem, systemImage: String) -> some View {
@@ -54,7 +65,10 @@ private struct SyncStatusView: View {
         VStack(alignment: .leading, spacing: 2) {
             Label(store.sourceName, systemImage: store.sourceName == "Sample Data" ? "shippingbox" : "cloud")
             Group {
-                if let error = store.syncError {
+                if !store.isOnline {
+                    Label("Offline. Changes are turned off.", systemImage: "wifi.slash")
+                        .foregroundStyle(.orange)
+                } else if let error = store.syncError {
                     Label(error, systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
                         .lineLimit(3)

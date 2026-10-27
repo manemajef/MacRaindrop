@@ -7,6 +7,7 @@ nonisolated struct RaindropAPIService: RaindropService {
     enum Failure: LocalizedError {
         case unauthorized
         case rateLimited
+        case rejected(String?)
         case http(status: Int)
         case decoding(path: String, underlying: DecodingError)
 
@@ -14,6 +15,7 @@ nonisolated struct RaindropAPIService: RaindropService {
             switch self {
             case .unauthorized: "Raindrop rejected the access token. Check RAINDROP_TEST."
             case .rateLimited: "Raindrop's rate limit was hit. Try again in a minute."
+            case .rejected(let reason): reason ?? "Raindrop didn't accept the change."
             case .http(let status): "Raindrop returned HTTP \(status)."
             case .decoding(let path, let underlying): "Unexpected response from \(path): \(underlying.summary)"
             }
@@ -67,6 +69,17 @@ nonisolated struct RaindropAPIService: RaindropService {
         return (first.items + remaining).filter { seen.insert($0.id).inserted }
     }
 
+    func updateRaindrop(id: Raindrop.ID, changes: RaindropChanges) async throws -> Raindrop {
+        let response: ItemResponse<Raindrop> = try await send("PUT", "raindrop/\(id)", body: changes)
+        guard response.result else { throw Failure.rejected(nil) }
+        return response.item
+    }
+
+    func updateRaindrops(ids: [Raindrop.ID], inCollection collectionID: Int, changes: RaindropChanges) async throws {
+        let response: WriteResponse = try await send("PUT", "raindrops/\(collectionID)", body: BulkChanges(ids: ids, changes: changes))
+        guard response.result else { throw Failure.rejected(response.errorMessage) }
+    }
+
     private func page(_ index: Int, of collectionID: Int, search: String?) async throws -> ItemsResponse<Raindrop> {
         var query = [
             URLQueryItem(name: "page", value: String(index)),
@@ -80,9 +93,24 @@ nonisolated struct RaindropAPIService: RaindropService {
         return try await get("raindrops/\(collectionID)", query: query)
     }
 
-    private func get<Response: Decodable>(_ path: String, query: [URLQueryItem] = [], retries: Int = 2) async throws -> Response {
+    private func get<Response: Decodable>(_ path: String, query: [URLQueryItem] = []) async throws -> Response {
+        try await send("GET", path, query: query)
+    }
+
+    private func send<Response: Decodable>(
+        _ method: String,
+        _ path: String,
+        query: [URLQueryItem] = [],
+        body: (any Encodable)? = nil,
+        retries: Int = 2
+    ) async throws -> Response {
         var request = URLRequest(url: Self.baseURL.appending(path: path).appending(queryItems: query))
+        request.httpMethod = method
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        if let body {
+            request.httpBody = try JSONEncoder.raindrop.encode(body)
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
 
         let (data, response) = try await session.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
@@ -98,7 +126,7 @@ nonisolated struct RaindropAPIService: RaindropService {
             throw Failure.unauthorized
         case 429 where retries > 0:
             try await Task.sleep(for: retryDelay(for: response))
-            return try await get(path, query: query, retries: retries - 1)
+            return try await send(method, path, query: query, body: body, retries: retries - 1)
         case 429:
             throw Failure.rateLimited
         default:
@@ -116,5 +144,19 @@ nonisolated struct RaindropAPIService: RaindropService {
             return .seconds(min(max(reset - Date.now.timeIntervalSince1970, 1), 60))
         }
         return .seconds(5)
+    }
+}
+
+/// The body of `PUT /raindrops/{collectionId}`: the changes, plus which raindrops they apply to.
+private nonisolated struct BulkChanges: Encodable {
+    var ids: [Raindrop.ID]
+    var changes: RaindropChanges
+
+    private enum CodingKeys: String, CodingKey { case ids }
+
+    func encode(to encoder: any Encoder) throws {
+        try changes.encode(to: encoder)
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(ids, forKey: .ids)
     }
 }

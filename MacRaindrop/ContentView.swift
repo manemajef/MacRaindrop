@@ -63,9 +63,35 @@ struct ContentView: View {
                 selection = []
                 searchText = ""
             }
+            .alert(store.writeFailure?.title ?? "", isPresented: showsWriteFailure, presenting: store.writeFailure) { failure in
+                Button("Try Again") { Task { await failure.retry() } }
+                Button("OK", role: .cancel) {}
+            } message: { failure in
+                Text(failure.message)
+            }
+            // Syncing is automatic: at launch, when the app comes forward, when the network
+            // comes back, and every few minutes while the app is active.
             .task {
                 if store.phase == .idle { await store.load() }
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(5 * 60))
+                    if NSApp.isActive { await store.syncIfStale() }
+                }
             }
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                Task { await store.syncIfStale() }
+            }
+            .onChange(of: store.isOnline) { _, isOnline in
+                if isOnline { Task { await store.syncIfStale(olderThan: .zero) } }
+            }
+    }
+
+    private var showsWriteFailure: Binding<Bool> {
+        Binding {
+            store.writeFailure != nil
+        } set: { isPresented in
+            if !isPresented { store.writeFailure = nil }
+        }
     }
 
     // MARK: Layout
@@ -180,22 +206,12 @@ struct ContentView: View {
 
     // MARK: Toolbar
 
-    /// Laid out left to right: sync | view switch | sort | actions | inspector, then search,
-    /// which macOS always puts last. Items next to each other share one glass capsule unless
-    /// a fixed `ToolbarSpacer` separates them.
+    /// Laid out left to right: view switch | sort | share, open | favorite, inspector, then
+    /// search, which macOS always puts last. Items next to each other share one glass capsule
+    /// unless a fixed `ToolbarSpacer` separates them. Syncing has no button: it's automatic,
+    /// with a manual trigger in the Debug menu.
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
-            if store.isSyncing && store.phase == .loaded {
-                ProgressView().controlSize(.small)
-            } else {
-                Button("Sync", systemImage: "arrow.clockwise") {
-                    Task { await store.sync() }
-                }
-                .disabled(store.isSyncing)
-            }
-        }
-
         ToolbarItem {
             Picker("View", selection: $mode) {
                 ForEach(CollectionMode.allCases) { mode in
@@ -241,12 +257,15 @@ struct ContentView: View {
         
         ToolbarItem{
             Button {
-                store.setImportant(selection, !selectedRaindrops.allSatisfy(\.important))
+                let ids = selection
+                let important = !selectedRaindrops.allSatisfy(\.important)
+                Task { await store.setImportant(ids, important) }
             } label: {
                 let isFavorite = !selectedRaindrops.isEmpty && selectedRaindrops.allSatisfy(\.important)
                 Label("Favorite", systemImage: isFavorite ? "heart.fill" : "heart")
             }
-            .disabled(selection.isEmpty)
+            .disabled(selection.isEmpty || !store.canModify(selection))
+            .help(store.isOnline ? "" : "You're offline")
             
         }
         

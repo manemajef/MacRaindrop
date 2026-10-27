@@ -16,6 +16,13 @@ nonisolated protocol RaindropService: Sendable {
     /// With `changedSince`, returns only raindrops updated on or after that *day* (UTC):
     /// the API's `lastUpdate:` filter has day granularity, so callers should expect some overlap.
     func fetchRaindrops(collectionID: Int, changedSince: Date?) async throws -> [Raindrop]
+
+    /// `PUT /raindrop/{id}`: changes one raindrop and returns the server's copy of it.
+    func updateRaindrop(id: Raindrop.ID, changes: RaindropChanges) async throws -> Raindrop
+    /// `PUT /raindrops/{collectionId}`: changes several raindrops that are all in `collectionID`.
+    ///
+    /// The server returns no items, and doesn't accept `SystemCollectionID.all` here.
+    func updateRaindrops(ids: [Raindrop.ID], inCollection collectionID: Int, changes: RaindropChanges) async throws
 }
 
 nonisolated extension RaindropService {
@@ -49,12 +56,15 @@ nonisolated struct SampleDataService: RaindropService {
     }
 
     var bundle: Bundle = .main
+    /// The sample library as edited so far. Writes change it, and fetches read from it, so a
+    /// sync picks edits up the same way it would from the server.
+    private let library = SampleLibrary()
 
     var name: String { "Sample Data" }
     var cacheIdentifier: String { "sample" }
 
     func fetchStats() async throws -> LibraryStats {
-        let raindrops = try loadRaindrops()
+        let raindrops = try await library.raindrops(from: self)
         return LibraryStats(
             changedBookmarksDate: raindrops.map(\.lastUpdate).max(),
             counts: [
@@ -70,13 +80,21 @@ nonisolated struct SampleDataService: RaindropService {
 
     func fetchRaindrops(collectionID: Int, changedSince: Date?) async throws -> [Raindrop] {
         let startOfDay = changedSince.map { Calendar.utc.startOfDay(for: $0) }
-        return try loadRaindrops().filter { raindrop in
+        return try await library.raindrops(from: self).filter { raindrop in
             let inCollection = switch collectionID {
             case SystemCollectionID.all: raindrop.collectionID != SystemCollectionID.trash
             default: raindrop.collectionID == collectionID
             }
             return inCollection && startOfDay.map { raindrop.lastUpdate >= $0 } ?? true
         }
+    }
+
+    func updateRaindrop(id: Raindrop.ID, changes: RaindropChanges) async throws -> Raindrop {
+        try await library.update([id], changes: changes, from: self)[0]
+    }
+
+    func updateRaindrops(ids: [Raindrop.ID], inCollection collectionID: Int, changes: RaindropChanges) async throws {
+        _ = try await library.update(ids, changes: changes, from: self)
     }
 
     // Synchronous variants, used for SwiftUI previews.
@@ -95,6 +113,33 @@ nonisolated struct SampleDataService: RaindropService {
         }
         let data = try Data(contentsOf: url)
         return try JSONDecoder.raindrop.decode(ItemsResponse<Item>.self, from: data).items
+    }
+}
+
+/// The sample raindrops in memory, loaded from the bundle on first use.
+private actor SampleLibrary {
+    private var raindrops: [Raindrop]?
+
+    func raindrops(from service: SampleDataService) throws -> [Raindrop] {
+        if let raindrops { return raindrops }
+        let loaded = try service.loadRaindrops()
+        raindrops = loaded
+        return loaded
+    }
+
+    /// Mimics the server: applies the changes and bumps `lastUpdate`.
+    func update(_ ids: [Raindrop.ID], changes: RaindropChanges, from service: SampleDataService) throws -> [Raindrop] {
+        var all = try raindrops(from: service)
+        var updated: [Raindrop] = []
+        for index in all.indices where ids.contains(all[index].id) {
+            all[index] = changes.applied(to: all[index])
+            if let tags = changes.tags { all[index].tags = tags }
+            all[index].lastUpdate = .now
+            updated.append(all[index])
+        }
+        guard !updated.isEmpty else { throw URLError(.fileDoesNotExist) }
+        raindrops = all
+        return updated
     }
 }
 

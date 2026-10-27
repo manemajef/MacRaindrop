@@ -88,7 +88,11 @@ struct RaindropGridView: View {
     }
 
     private func card(_ raindrop: Raindrop) -> some View {
-        RaindropCard(raindrop: raindrop, isSelected: selection.contains(raindrop.id))
+        RaindropCard(
+            raindrop: raindrop,
+            isSelected: selection.contains(raindrop.id),
+            isPending: store.pendingIDs.contains(raindrop.id)
+        )
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.coordinateSpace)) } action: {
                 cardFrames[raindrop.id] = $0
             }
@@ -223,6 +227,8 @@ private struct RubberBand {
 struct RaindropCard: View {
     let raindrop: Raindrop
     let isSelected: Bool
+    /// A write to this raindrop is waiting for the server.
+    var isPending = false
 
     @State private var isHovered = false
 
@@ -275,6 +281,15 @@ struct RaindropCard: View {
                 RoundedRectangle(cornerRadius: 12).strokeBorder(.tint, lineWidth: 3)
             } else if isHovered {
                 RoundedRectangle(cornerRadius: 12).strokeBorder(.separator, lineWidth: 1)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if isPending {
+                ProgressView()
+                    .controlSize(.small)
+                    .padding(6)
+                    .background(.regularMaterial, in: .circle)
+                    .padding(8)
             }
         }
         .contentShape(.rect(cornerRadius: 12))

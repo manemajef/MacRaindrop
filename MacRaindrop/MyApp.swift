@@ -10,11 +10,14 @@ import SwiftUI
         }
         .defaultSize(width: 1280, height: 800)
         .commands {
-            CommandGroup(after: .newItem) {
+            #if DEBUG
+            CommandMenu("Debug") {
                 Button("Sync Now") { Task { await store.sync() } }
                     .keyboardShortcut("r")
                     .disabled(store.isSyncing)
+                Toggle("Simulate Write Failures", isOn: $store.simulatesWriteFailures)
             }
+            #endif
         }
     }
 }

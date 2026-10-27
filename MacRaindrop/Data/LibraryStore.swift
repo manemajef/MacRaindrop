@@ -1,4 +1,5 @@
 import Foundation
+import Network
 import Observation
 
 /// What the sidebar can point at.
@@ -60,21 +61,63 @@ final class LibraryStore {
     private(set) var lastSyncedAt: Date?
     /// Set when a sync fails while cached data is on screen; cleared by the next success.
     private(set) var syncError: String?
+    /// Raindrops with a write on its way to the server. Their actions are disabled until it's answered.
+    private(set) var pendingIDs: Set<Raindrop.ID> = []
+    /// The last write the server didn't accept, for the UI to present. Nothing changed locally.
+    var writeFailure: WriteFailure?
+    /// Whether the system reports a network path. Only a hint: a write can still fail while "online".
+    private(set) var isOnline = true
+    #if DEBUG
+    /// Makes every write fail before reaching the server, to check that nothing changes locally.
+    var simulatesWriteFailures = false
+    #endif
 
     @ObservationIgnored private let service: any RaindropService
     @ObservationIgnored private let cache: LibraryCache
     @ObservationIgnored private lazy var syncEngine = SyncEngine(service: service, cache: cache)
+    @ObservationIgnored private let pathMonitor = NWPathMonitor()
+    /// The end of the queue that syncs and writes run on, one at a time. A sync that started
+    /// before a write can then never put the pre-write copy back over the server's answer.
+    @ObservationIgnored private var lastOperation: Task<Void, Never>?
 
     var sourceName: String { service.name }
+
+    /// Writes are offered only with a loaded library and a network connection.
+    var canWrite: Bool { phase == .loaded && isOnline }
 
     init(service: any RaindropService = SampleDataService(), cache: LibraryCache? = nil) {
         self.service = service
         self.cache = cache ?? LibraryCache(identifier: service.cacheIdentifier)
+        pathMonitor.pathUpdateHandler = { [weak self] path in
+            Task { @MainActor in self?.isOnline = path.status == .satisfied }
+        }
+        pathMonitor.start(queue: .main)
+    }
+
+    deinit {
+        pathMonitor.cancel()
+    }
+
+    /// Runs `operation` after every sync and write queued before it.
+    private func enqueue<T>(_ operation: @escaping () async throws -> T) async throws -> T {
+        let previous = lastOperation
+        let task = Task {
+            await previous?.value
+            return try await operation()
+        }
+        lastOperation = Task { _ = try? await task.value }
+        return try await task.value
     }
 
     /// Shows the cached library immediately, then syncs in the background.
     func load() async {
         if phase == .idle { reloadFromCache() }
+        await sync()
+    }
+
+    /// Syncs unless the last sync finished less than `interval` ago. Used for the automatic syncs.
+    func syncIfStale(olderThan interval: Duration = .seconds(60)) async {
+        if let lastSyncedAt, Date.now.timeIntervalSince(lastSyncedAt) < interval / .seconds(1) { return }
         await sync()
     }
 
@@ -85,7 +128,7 @@ final class LibraryStore {
         if phase != .loaded { phase = .loading }
 
         do {
-            let report = try await syncEngine.sync()
+            let report = try await enqueue { try await self.syncEngine.sync() }
             if report.kind != .upToDate || phase != .loaded {
                 reloadFromCache()
             }
@@ -182,14 +225,88 @@ final class LibraryStore {
         raindrops(in: item).count
     }
 
-    // MARK: Local mutations (not yet synced; the next sync that touches the item overwrites them)
+    func canModify(_ ids: some Sequence<Raindrop.ID>) -> Bool {
+        canWrite && pendingIDs.isDisjoint(with: ids)
+    }
 
-    func setImportant(_ ids: some Sequence<Raindrop.ID>, _ important: Bool) {
-        let ids = Set(ids)
-        for index in raindrops.indices where ids.contains(raindrops[index].id) {
-            raindrops[index].important = important
+    // MARK: Writes
+    //
+    // Every write goes to the server first. Only the server's answer changes the cache and
+    // what's on screen, so nothing ever looks saved that wasn't. A failure changes nothing
+    // and sets `writeFailure`.
+
+    func setImportant(_ ids: some Sequence<Raindrop.ID>, _ important: Bool) async {
+        await update(
+            Array(ids),
+            with: RaindropChanges(important: important),
+            failureTitle: important ? "Couldn't Add to Favorites" : "Couldn't Remove from Favorites"
+        )
+    }
+
+    func update(_ ids: [Raindrop.ID], with changes: RaindropChanges, failureTitle: String) async {
+        let targets = ids.compactMap(raindrop(id:)).filter { !pendingIDs.contains($0.id) }
+        guard !targets.isEmpty else { return }
+        let targetIDs = Set(targets.map(\.id))
+        pendingIDs.formUnion(targetIDs)
+        defer { pendingIDs.subtract(targetIDs) }
+
+        do {
+            let confirmedAll = try await enqueue {
+                try self.failIfSimulating()
+                if targets.count == 1 {
+                    let updated = try await self.service.updateRaindrop(id: targets[0].id, changes: changes)
+                    try self.apply([updated])
+                    return true
+                }
+                // The bulk endpoint works per collection and returns no items. A confirmed
+                // group is applied right away, so a later group failing doesn't hide it.
+                for (collectionID, group) in Dictionary(grouping: targets, by: \.collectionID) {
+                    try await self.service.updateRaindrops(ids: group.map(\.id), inCollection: collectionID, changes: changes)
+                    try self.apply(group.map(changes.applied(to:)))
+                }
+                return false
+            }
+            // Bulk writes only confirm the change, so fetch the server's copies (tags, `lastUpdate`).
+            if !confirmedAll { await sync() }
+        } catch {
+            writeFailure = WriteFailure(title: failureTitle, message: error.localizedDescription) { [weak self] in
+                await self?.update(ids, with: changes, failureTitle: failureTitle)
+            }
         }
     }
+
+    /// Stores raindrops as the server returned (or confirmed) them, and shows them.
+    private func apply(_ updated: [Raindrop]) throws {
+        try cache.upsertRaindrops(updated)
+        try cache.save()
+        for raindrop in updated {
+            if let index = raindrops.firstIndex(where: { $0.id == raindrop.id }) {
+                raindrops[index] = raindrop
+            } else {
+                raindrops.append(raindrop)
+            }
+        }
+    }
+
+    private func failIfSimulating() throws {
+        #if DEBUG
+        if simulatesWriteFailures { throw SimulatedWriteFailure() }
+        #endif
+    }
+}
+
+#if DEBUG
+private struct SimulatedWriteFailure: LocalizedError {
+    var errorDescription: String? { "Simulated failure (Debug › Simulate Write Failures). Nothing was sent." }
+}
+#endif
+
+/// A write the server didn't accept, with a way to try it again.
+struct WriteFailure: Identifiable {
+    let id = UUID()
+    let title: String
+    let message: String
+    let retry: () async -> Void
 }
 
 extension LibraryStore {

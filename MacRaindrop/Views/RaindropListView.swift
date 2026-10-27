@@ -8,7 +8,7 @@ struct RaindropListView: View {
 
     var body: some View {
         List(raindrops, selection: $selection) { raindrop in
-            RaindropRow(raindrop: raindrop)
+            RaindropRow(raindrop: raindrop, isPending: store.pendingIDs.contains(raindrop.id))
                 .draggable(containerItemID: raindrop.id)
         }
         .contextMenu(forSelectionType: Raindrop.ID.self) { ids in
@@ -25,12 +25,22 @@ struct RaindropListView: View {
 
 struct RaindropRow: View {
     let raindrop: Raindrop
+    /// A write to this raindrop is waiting for the server.
+    var isPending = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             CoverImage(url: raindrop.coverURL, kind: raindrop.type)
                 .frame(width: 72, height: 54)
                 .clipShape(.rect(cornerRadius: 6))
+                .overlay {
+                    if isPending {
+                        ProgressView()
+                            .controlSize(.small)
+                            .padding(6)
+                            .background(.regularMaterial, in: .circle)
+                    }
+                }
 
             VStack(alignment: .leading, spacing: 3) {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
@@ -102,8 +112,11 @@ struct RaindropActions: View {
                 allFavorites ? "Remove from Favorites" : "Add to Favorites",
                 systemImage: allFavorites ? "heart.slash" : "heart"
             ) {
-                store.setImportant(raindrops.map(\.id), !allFavorites)
+                let ids = raindrops.map(\.id)
+                let important = !allFavorites
+                Task { await store.setImportant(ids, important) }
             }
+            .disabled(!store.canModify(raindrops.map(\.id)))
         }
     }
 }
