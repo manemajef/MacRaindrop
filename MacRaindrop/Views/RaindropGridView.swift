@@ -6,9 +6,12 @@ import SwiftUI
 /// rubber-band, arrow keys, ⌘A and Esc. Double-click or Return opens the selection in the browser.
 struct RaindropGridView: View {
     @Environment(LibraryStore.self) private var store
+    @Environment(ActionPrompts.self) private var prompts
     @Environment(\.openURL) private var openURL
     let raindrops: [Raindrop]
     @Binding var selection: Set<Raindrop.ID>
+
+    private var selected: [Raindrop] { raindrops.filter { selection.contains($0.id) } }
 
     /// Where ⇧-click and ⇧-arrow ranges start, and where plain arrow keys move from.
     @State private var anchor: Raindrop.ID?
@@ -56,6 +59,8 @@ struct RaindropGridView: View {
                 return .handled
             }
             .onExitCommand { selection = [] }
+            .onDeleteCommand { prompts.delete(selected, in: store) }
+            .copyable(selected.compactMap(\.url))
         }
         .raindropDragContainer(selection: selection)
         .onAppear { isFocused = true }
@@ -361,4 +366,5 @@ private struct RaindropDragContainer: ViewModifier {
     RaindropGridView(raindrops: store.raindrops(in: .all), selection: $selection)
         .frame(width: 800, height: 600)
         .environment(store)
+        .environment(ActionPrompts())
 }

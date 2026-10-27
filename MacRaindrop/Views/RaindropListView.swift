@@ -2,9 +2,12 @@ import SwiftUI
 
 struct RaindropListView: View {
     @Environment(LibraryStore.self) private var store
+    @Environment(ActionPrompts.self) private var prompts
     @Environment(\.openURL) private var openURL
     let raindrops: [Raindrop]
     @Binding var selection: Set<Raindrop.ID>
+
+    private var selected: [Raindrop] { raindrops.filter { selection.contains($0.id) } }
 
     var body: some View {
         List(raindrops, selection: $selection) { raindrop in
@@ -20,6 +23,8 @@ struct RaindropListView: View {
             }
         }
         .raindropDragContainer(selection: selection)
+        .copyable(selected.compactMap(\.url))
+        .onDeleteCommand { prompts.delete(selected, in: store) }
     }
 }
 
@@ -86,44 +91,10 @@ struct RaindropRow: View {
     }
 }
 
-/// Shared menu items for one or more raindrops, used by the list and card context menus.
-struct RaindropActions: View {
-    @Environment(LibraryStore.self) private var store
-    @Environment(\.openURL) private var openURL
-    let raindrops: [Raindrop]
-
-    private var urls: [URL] { raindrops.compactMap(\.url) }
-    private var allFavorites: Bool { raindrops.allSatisfy(\.important) }
-
-    var body: some View {
-        if !urls.isEmpty {
-            Button("Open in Browser", systemImage: "safari") { urls.forEach { openURL($0) } }
-            if let url = urls.first, urls.count == 1 {
-                ShareLink(item: url)
-            }
-            Button(urls.count == 1 ? "Copy Link" : "Copy \(urls.count) Links", systemImage: "doc.on.doc") {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(urls.map(\.absoluteString).joined(separator: "\n"), forType: .string)
-            }
-            Divider()
-        }
-        if !raindrops.isEmpty {
-            Button(
-                allFavorites ? "Remove from Favorites" : "Add to Favorites",
-                systemImage: allFavorites ? "heart.slash" : "heart"
-            ) {
-                let ids = raindrops.map(\.id)
-                let important = !allFavorites
-                Task { await store.setImportant(ids, important) }
-            }
-            .disabled(!store.canModify(raindrops.map(\.id)))
-        }
-    }
-}
-
 #Preview {
     @Previewable @State var selection: Set<Raindrop.ID> = []
     let store = LibraryStore.preview
     RaindropListView(raindrops: store.raindrops(in: .all), selection: $selection)
         .environment(store)
+        .environment(ActionPrompts())
 }

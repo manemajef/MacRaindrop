@@ -10,6 +10,7 @@ import SwiftUI
         }
         .defaultSize(width: 1280, height: 800)
         .commands {
+            BookmarkCommands(store: store)
             #if DEBUG
             CommandMenu("Debug") {
                 Button("Sync Now") { Task { await store.sync() } }

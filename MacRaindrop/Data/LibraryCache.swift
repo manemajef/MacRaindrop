@@ -132,6 +132,10 @@ final class LibraryCache {
         }
     }
 
+    func deleteRaindrops(_ ids: [Raindrop.ID]) throws {
+        try context.delete(model: CachedRaindrop.self, where: #Predicate { ids.contains($0.id) })
+    }
+
     func save() throws {
         try context.save()
     }

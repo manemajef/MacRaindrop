@@ -25,6 +25,7 @@ nonisolated struct Raindrop: Identifiable, Hashable, Codable, Sendable {
     var lastUpdate: Date
 
     var url: URL? { URL(string: link) }
+    var isInTrash: Bool { removed || collectionID == SystemCollectionID.trash }
     var coverURL: URL? { cover.isEmpty ? nil : URL(string: cover) }
 
     enum CodingKeys: String, CodingKey {

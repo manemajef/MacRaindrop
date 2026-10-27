@@ -32,6 +32,7 @@ struct ContentView: View {
     @State private var selection: Set<Raindrop.ID> = []
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var searchText = ""
+    @State private var prompts = ActionPrompts()
     @AppStorage("collectionMode") private var mode: CollectionMode = .cards
     @AppStorage("raindropSort") private var sort: RaindropSort = .newest
     @AppStorage("showInspector") private var showInspector = true
@@ -52,6 +53,26 @@ struct ContentView: View {
 
     var body: some View {
         splitView
+            .focusedSceneValue(\.bookmarkContext, BookmarkContext(raindrops: selectedRaindrops, prompts: prompts))
+            .sheet(item: $prompts.editing) { raindrop in
+                EditRaindropSheet(raindrop: raindrop)
+            }
+            .sheet(item: $prompts.tagging) { request in
+                AddTagsSheet(request: request)
+            }
+            .confirmationDialog(
+                prompts.deletion.map { $0.ids.count == 1 ? "Delete this bookmark immediately?" : "Delete \($0.ids.count) bookmarks immediately?" } ?? "",
+                isPresented: showsDeletion,
+                presenting: prompts.deletion
+            ) { request in
+                Button("Delete", role: .destructive) {
+                    Task { await store.attempt("Couldn't Delete Bookmarks") { try await store.delete(request.ids) } }
+                }
+            } message: { request in
+                Text(request.includesOthers
+                    ? "Bookmarks already in the Trash are deleted for good, and the others move to the Trash. You can't undo this."
+                    : "You can't undo this.")
+            }
             .navigationTitle(title)
             .navigationSubtitle(store.phase == .loaded ? "\(raindrops.count) bookmarks" : "")
             .searchable(text: $searchText, prompt: "Search \(sidebarSelection.map(store.title(for:)) ?? "Bookmarks")")
@@ -62,6 +83,10 @@ struct ContentView: View {
             .onChange(of: sidebarSelection) {
                 selection = []
                 searchText = ""
+            }
+            // Bookmarks that leave the list (trashed, moved elsewhere) leave the selection too.
+            .onChange(of: raindrops.map(\.id)) { _, visible in
+                selection.formIntersection(visible)
             }
             .alert(store.writeFailure?.title ?? "", isPresented: showsWriteFailure, presenting: store.writeFailure) { failure in
                 Button("Try Again") { Task { await failure.retry() } }
@@ -84,6 +109,15 @@ struct ContentView: View {
             .onChange(of: store.isOnline) { _, isOnline in
                 if isOnline { Task { await store.syncIfStale(olderThan: .zero) } }
             }
+            .environment(prompts)
+    }
+
+    private var showsDeletion: Binding<Bool> {
+        Binding {
+            prompts.deletion != nil
+        } set: { isPresented in
+            if !isPresented { prompts.deletion = nil }
+        }
     }
 
     private var showsWriteFailure: Binding<Bool> {
@@ -206,7 +240,7 @@ struct ContentView: View {
 
     // MARK: Toolbar
 
-    /// Laid out left to right: view switch | sort | share, open | favorite, inspector, then
+    /// Laid out left to right: view switch | sort | share, open | edit, inspector, then
     /// search, which macOS always puts last. Items next to each other share one glass capsule
     /// unless a fixed `ToolbarSpacer` separates them. Syncing has no button: it's automatic,
     /// with a manual trigger in the Debug menu.
@@ -255,18 +289,12 @@ struct ContentView: View {
 
         }
         
-        ToolbarItem{
-            Button {
-                let ids = selection
-                let important = !selectedRaindrops.allSatisfy(\.important)
-                Task { await store.setImportant(ids, important) }
-            } label: {
-                let isFavorite = !selectedRaindrops.isEmpty && selectedRaindrops.allSatisfy(\.important)
-                Label("Favorite", systemImage: isFavorite ? "heart.fill" : "heart")
+        ToolbarItem {
+            Button("Edit", systemImage: "pencil") {
+                prompts.editing = selectedRaindrop
             }
-            .disabled(selection.isEmpty || !store.canModify(selection))
-            .help(store.isOnline ? "" : "You're offline")
-            
+            .disabled(selectedRaindrop.map { !store.canModify([$0.id]) } ?? true)
+            .help(store.isOnline ? "Edit the selected bookmark" : "You're offline")
         }
         
         ToolbarItem {

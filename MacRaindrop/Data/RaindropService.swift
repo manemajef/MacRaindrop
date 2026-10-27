@@ -17,12 +17,17 @@ nonisolated protocol RaindropService: Sendable {
     /// the API's `lastUpdate:` filter has day granularity, so callers should expect some overlap.
     func fetchRaindrops(collectionID: Int, changedSince: Date?) async throws -> [Raindrop]
 
+    /// `GET /raindrop/{id}`: the server's current copy of one raindrop.
+    func fetchRaindrop(id: Raindrop.ID) async throws -> Raindrop
     /// `PUT /raindrop/{id}`: changes one raindrop and returns the server's copy of it.
     func updateRaindrop(id: Raindrop.ID, changes: RaindropChanges) async throws -> Raindrop
     /// `PUT /raindrops/{collectionId}`: changes several raindrops that are all in `collectionID`.
     ///
     /// The server returns no items, and doesn't accept `SystemCollectionID.all` here.
     func updateRaindrops(ids: [Raindrop.ID], inCollection collectionID: Int, changes: RaindropChanges) async throws
+    /// `DELETE /raindrops/{collectionId}`: moves raindrops in `collectionID` to the Trash, or
+    /// deletes them for good when `collectionID` is the Trash.
+    func removeRaindrops(ids: [Raindrop.ID], inCollection collectionID: Int) async throws
 }
 
 nonisolated extension RaindropService {
@@ -89,12 +94,23 @@ nonisolated struct SampleDataService: RaindropService {
         }
     }
 
+    func fetchRaindrop(id: Raindrop.ID) async throws -> Raindrop {
+        guard let raindrop = try await library.raindrops(from: self).first(where: { $0.id == id }) else {
+            throw URLError(.fileDoesNotExist)
+        }
+        return raindrop
+    }
+
     func updateRaindrop(id: Raindrop.ID, changes: RaindropChanges) async throws -> Raindrop {
         try await library.update([id], changes: changes, from: self)[0]
     }
 
     func updateRaindrops(ids: [Raindrop.ID], inCollection collectionID: Int, changes: RaindropChanges) async throws {
         _ = try await library.update(ids, changes: changes, from: self)
+    }
+
+    func removeRaindrops(ids: [Raindrop.ID], inCollection collectionID: Int) async throws {
+        try await library.remove(ids, inTrash: collectionID == SystemCollectionID.trash, from: self)
     }
 
     // Synchronous variants, used for SwiftUI previews.
@@ -140,6 +156,21 @@ private actor SampleLibrary {
         guard !updated.isEmpty else { throw URLError(.fileDoesNotExist) }
         raindrops = all
         return updated
+    }
+
+    /// Mimics the server: moves raindrops to the Trash, or deletes those already there.
+    func remove(_ ids: [Raindrop.ID], inTrash: Bool, from service: SampleDataService) throws {
+        var all = try raindrops(from: service)
+        if inTrash {
+            all.removeAll { ids.contains($0.id) }
+        } else {
+            for index in all.indices where ids.contains(all[index].id) {
+                all[index].collectionID = SystemCollectionID.trash
+                all[index].removed = true
+                all[index].lastUpdate = .now
+            }
+        }
+        raindrops = all
     }
 }
 

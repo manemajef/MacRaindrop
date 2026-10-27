@@ -69,6 +69,11 @@ nonisolated struct RaindropAPIService: RaindropService {
         return (first.items + remaining).filter { seen.insert($0.id).inserted }
     }
 
+    func fetchRaindrop(id: Raindrop.ID) async throws -> Raindrop {
+        let response: ItemResponse<Raindrop> = try await get("raindrop/\(id)")
+        return response.item
+    }
+
     func updateRaindrop(id: Raindrop.ID, changes: RaindropChanges) async throws -> Raindrop {
         let response: ItemResponse<Raindrop> = try await send("PUT", "raindrop/\(id)", body: changes)
         guard response.result else { throw Failure.rejected(nil) }
@@ -77,6 +82,11 @@ nonisolated struct RaindropAPIService: RaindropService {
 
     func updateRaindrops(ids: [Raindrop.ID], inCollection collectionID: Int, changes: RaindropChanges) async throws {
         let response: WriteResponse = try await send("PUT", "raindrops/\(collectionID)", body: BulkChanges(ids: ids, changes: changes))
+        guard response.result else { throw Failure.rejected(response.errorMessage) }
+    }
+
+    func removeRaindrops(ids: [Raindrop.ID], inCollection collectionID: Int) async throws {
+        let response: WriteResponse = try await send("DELETE", "raindrops/\(collectionID)", body: ["ids": ids])
         guard response.result else { throw Failure.rejected(response.errorMessage) }
     }
 

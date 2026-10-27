@@ -38,7 +38,10 @@ nonisolated struct RaindropChanges: Encodable, Sendable, Equatable {
         if let note { raindrop.note = note }
         if let link { raindrop.link = link }
         if let important { raindrop.important = important }
-        if let collectionID { raindrop.collectionID = collectionID }
+        if let collectionID {
+            raindrop.collectionID = collectionID
+            raindrop.removed = collectionID == SystemCollectionID.trash
+        }
         return raindrop
     }
 }
