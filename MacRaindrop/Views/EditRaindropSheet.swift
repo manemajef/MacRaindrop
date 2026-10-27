@@ -65,6 +65,7 @@ struct EditRaindropSheet: View {
         .frame(width: 520)
         .fixedSize(horizontal: false, vertical: true)
         .disabled(isSaving)
+        .glassEffect(in: .containerRelative)
         .task { await loadLatest() }
         .alert("Changed on Another Device", isPresented: $showsConflict) {
             Button("Save Anyway") { save(checkingForConflicts: false) }
@@ -81,8 +82,9 @@ struct EditRaindropSheet: View {
             Text("Edit \(draft.type.label.lowercased())")
                 .font(.headline)
             HStack {
-                Button("Cancel", role: .cancel) { dismiss() }
+                Button("Cancel",  role: .cancel) { dismiss() }
                     .keyboardShortcut(.cancelAction)
+                    .controlSize(.large)
                 Spacer()
                 Button {
                     save(checkingForConflicts: true)
@@ -94,6 +96,7 @@ struct EditRaindropSheet: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
+                .controlSize(.large)
                 .keyboardShortcut("s")
                 .disabled(!canSave)
             }
@@ -312,4 +315,11 @@ struct FlowLayout: Layout {
         }
         return rows
     }
+}
+
+#Preview {
+    let store = LibraryStore.preview
+    // A bookmark with tags and a cover, so every section has something in it.
+    EditRaindropSheet(raindrop: store.raindrops.first { !$0.tags.isEmpty && $0.coverURL != nil } ?? store.raindrops[0])
+        .environment(store)
 }
