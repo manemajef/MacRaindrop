@@ -9,6 +9,11 @@ struct ContentView: View {
     /// The bookmark list follows the sidebar: hiding the sidebar leaves just the page.
     private var showsList: Bool { columnVisibility != .detailOnly }
 
+    /// Drives the inner list/page split from the outer sidebar's visibility.
+    private var listVisibility: Binding<NavigationSplitViewVisibility> {
+        Binding(get: { showsList ? .all : .detailOnly }, set: { _ in })
+    }
+
     private var selectedRaindrop: Raindrop? {
         raindropSelection.flatMap(store.raindrop(id:))
     }
@@ -17,24 +22,14 @@ struct ContentView: View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView(selection: $sidebarSelection)
         } detail: {
-            #if os(macOS)
-            HSplitView {
-                if showsList {
-                    list
-                        .frame(minWidth: 280, idealWidth: 360, maxWidth: 560, maxHeight: .infinity)
-                }
-                detail
-                    .frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
-            }
-            #else
-            HStack(spacing: 0) {
-                if showsList {
-                    list.frame(width: 360)
-                    Divider()
-                }
+            // A nested split gives the list a real column that collapses with the sidebar,
+            // each animated by its own split view.
+            NavigationSplitView(columnVisibility: listVisibility) {
+                list
+                    .navigationSplitViewColumnWidth(min: 280, ideal: 360, max: 560)
+            } detail: {
                 detail
             }
-            #endif
         }
         .navigationTitle(title)
         .onChange(of: sidebarSelection) { raindropSelection = nil }
