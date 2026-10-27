@@ -8,6 +8,7 @@ import SwiftUI
             ContentView()
                 .environment(store)
         }
+        .defaultSize(width: 1280, height: 800)
         .commands {
             CommandGroup(after: .newItem) {
                 Button("Sync Now") { Task { await store.sync() } }

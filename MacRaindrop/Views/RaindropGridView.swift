@@ -61,29 +61,47 @@ struct RaindropGridView: View {
         .onAppear { isFocused = true }
     }
 
+    /// Rows of cards rather than a `LazyVGrid`, so every card in a row can stretch to the
+    /// tallest one (like `align-items: stretch`). Each row is still created lazily.
     private var grid: some View {
-        LazyVGrid(
-            columns: Array(repeating: GridItem(.flexible(), spacing: Self.spacing, alignment: .top), count: columnCount),
-            alignment: .leading,
-            spacing: Self.spacing
-        ) {
-            ForEach(raindrops) { raindrop in
-                RaindropCard(raindrop: raindrop, isSelected: selection.contains(raindrop.id))
-                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.coordinateSpace)) } action: {
-                        cardFrames[raindrop.id] = $0
+        LazyVStack(alignment: .leading, spacing: Self.spacing) {
+            ForEach(rows, id: \.first?.id) { row in
+                HStack(alignment: .top, spacing: Self.spacing) {
+                    ForEach(row) { raindrop in
+                        card(raindrop)
                     }
-                    .onDisappear { cardFrames[raindrop.id] = nil }
-                    .gesture(TapGesture(count: 2).onEnded { open([raindrop.id]) })
-                    .simultaneousGesture(TapGesture().onEnded { click(raindrop.id) })
-                    .draggable(containerItemID: raindrop.id)
-                    .contextMenu {
-                        // Like Finder: right-clicking a selected card acts on the whole selection.
-                        let targets = selection.contains(raindrop.id) ? selection : [raindrop.id]
-                        RaindropActions(raindrops: raindrops.filter { targets.contains($0.id) })
+                    // Keep a short last row on the same column widths as the rows above.
+                    ForEach(row.count..<columnCount, id: \.self) { _ in
+                        Color.clear.frame(maxWidth: .infinity, maxHeight: 0)
                     }
-                    .id(raindrop.id)
+                }
+                // The row takes its tallest card's height, and `maxHeight: .infinity` fills it.
+                .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+
+    private var rows: [ArraySlice<Raindrop>] {
+        stride(from: 0, to: raindrops.count, by: columnCount).map {
+            raindrops[$0..<min($0 + columnCount, raindrops.count)]
+        }
+    }
+
+    private func card(_ raindrop: Raindrop) -> some View {
+        RaindropCard(raindrop: raindrop, isSelected: selection.contains(raindrop.id))
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.coordinateSpace)) } action: {
+                cardFrames[raindrop.id] = $0
+            }
+            .onDisappear { cardFrames[raindrop.id] = nil }
+            .gesture(TapGesture(count: 2).onEnded { open([raindrop.id]) })
+            .simultaneousGesture(TapGesture().onEnded { click(raindrop.id) })
+            .draggable(containerItemID: raindrop.id)
+            .contextMenu {
+                // Like Finder: right-clicking a selected card acts on the whole selection.
+                let targets = selection.contains(raindrop.id) ? selection : [raindrop.id]
+                RaindropActions(raindrops: raindrops.filter { targets.contains($0.id) })
+            }
+            .id(raindrop.id)
     }
 
     // MARK: Mouse selection
@@ -206,10 +224,15 @@ struct RaindropCard: View {
     let raindrop: Raindrop
     let isSelected: Bool
 
+    @State private var isHovered = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Color.clear
                 .aspectRatio(16 / 10, contentMode: .fit)
+                // Height from the card's width alone; otherwise a stretched row squeezes the
+                // cover's height and the 16:10 ratio shrinks its width with it.
+                .fixedSize(horizontal: false, vertical: true)
                 .overlay { CoverImage(url: raindrop.coverURL, kind: raindrop.type) }
                 // Only trims the filled image to its frame; the card's shape rounds the top corners.
                 .clipped()
@@ -233,20 +256,29 @@ struct RaindropCard: View {
                         .clipped()
                 }
 
+                // Pins the footer to the bottom, so footers line up across a row.
+                Spacer(minLength: 0)
+
                 footer
                     .padding(.top, 2)
             }
             .padding(.horizontal, 10)
-            .padding(.top, 4)
+            .padding(.top, 8)
             .padding(.bottom, 10)
         }
+        // Fill whatever height the row gives, before the background, so the card itself stretches.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(.background.secondary)
         .clipShape(.rect(cornerRadius: 12))
         .overlay {
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.separator), lineWidth: isSelected ? 3 : 1)
+            if isSelected {
+                RoundedRectangle(cornerRadius: 12).strokeBorder(.tint, lineWidth: 3)
+            } else if isHovered {
+                RoundedRectangle(cornerRadius: 12).strokeBorder(.separator, lineWidth: 1)
+            }
         }
         .contentShape(.rect(cornerRadius: 12))
+        .onHover { isHovered = $0 }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }

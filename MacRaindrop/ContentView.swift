@@ -56,7 +56,7 @@ struct ContentView: View {
             .searchable(text: $searchText, prompt: "Search \(sidebarSelection.map(store.title(for:)) ?? "Bookmarks")")
             .inspector(isPresented: $showInspector) {
                 inspector
-                    .inspectorColumnWidth(min: 260, ideal: 320, max: 440)
+                    .inspectorColumnWidth(min: 260, ideal: 300, max: 400)
             }
             .onChange(of: sidebarSelection) {
                 selection = []
@@ -70,8 +70,14 @@ struct ContentView: View {
     // MARK: Layout
 
     /// Three columns in list mode, two in cards mode. The inspector sits outside both.
-    /// The toolbar goes on the last column: attached to the split view itself, AppKit
-    /// gives it no room and every item collapses into the overflow menu.
+    ///
+    /// Only the sidebar and the list get column widths. The last column is whatever is left:
+    /// giving it an ideal or max width too makes the split view fight the window over who
+    /// gets the space, which shows up as columns jumping, especially in previews.
+    ///
+    /// The toolbar goes on the last column. On the split view itself every item collapses
+    /// into the overflow menu; outside `.inspector`, the spacer that keeps the inspector
+    /// button in its own capsule is ignored.
     @ViewBuilder
     private var splitView: some View {
         switch mode {
@@ -80,11 +86,10 @@ struct ContentView: View {
                 SidebarView(selection: $sidebarSelection)
             } content: {
                 collection
-                    .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 560)
+                    .navigationSplitViewColumnWidth(min: 260, ideal: 320, max: 440)
             } detail: {
                 detail
                     .toolbar { toolbar }
-                    .navigationSplitViewColumnWidth(min: 400, ideal: 800, max: .infinity)
             }
         case .cards:
             NavigationSplitView(columnVisibility: $columnVisibility) {
@@ -174,6 +179,9 @@ struct ContentView: View {
 
     // MARK: Toolbar
 
+    /// Laid out left to right: sync | view switch | sort | actions | inspector, then search,
+    /// which macOS always puts last. Items next to each other share one glass capsule unless
+    /// a fixed `ToolbarSpacer` separates them.
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .navigation) {
@@ -205,6 +213,8 @@ struct ContentView: View {
                 .pickerStyle(.inline)
             }
         }
+
+        ToolbarSpacer(.fixed)
 
         ToolbarItemGroup {
             Button {
@@ -240,5 +250,8 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+        // A real window size: without one the canvas sizes the split view to fit its content,
+        // and the columns come out squeezed or jumping.
+        .frame(width: 1200, height: 760)
         .environment(LibraryStore.preview)
 }

@@ -37,7 +37,7 @@ struct SidebarView: View {
                 .background(.bar)
         }
         .navigationTitle("Raindrop")
-        .navigationSplitViewColumnWidth(min: 180, ideal: 220)
+        .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
     }
 
     private func row(_ item: SidebarItem, systemImage: String) -> some View {
