@@ -23,8 +23,11 @@ struct RaindropGridView: View {
 
     /// Where ⇧-click and ⇧-arrow ranges start, and where plain arrow keys move from.
     @State private var anchor: Raindrop.ID?
-    @State private var viewport: CGSize = .zero
-    @State private var cardFrames: [Raindrop.ID: CGRect] = [:]
+    /// Changes only when a column is gained or lost, not on every frame of a resize.
+    @State private var columnCount = 1
+    @State private var viewportHeight: CGFloat = 0
+    @State private var isScrolledToTop = true
+    @State private var cardFrames = CardFrames()
     @State private var rubberBand: RubberBand?
     @FocusState private var isFocused: Bool
 
@@ -33,9 +36,9 @@ struct RaindropGridView: View {
     private static let padding: CGFloat = 16
     private static let coordinateSpace = "RaindropGrid"
 
-    private var columnCount: Int {
-        let available = viewport.width - 2 * Self.padding + Self.spacing
-        return max(1, Int(available / (Self.minCardWidth + Self.spacing)))
+    private static func columnCount(forWidth width: CGFloat) -> Int {
+        let available = width - 2 * padding + spacing
+        return max(1, Int(available / (minCardWidth + spacing)))
     }
 
     var body: some View {
@@ -44,12 +47,31 @@ struct RaindropGridView: View {
                 grid
                     .padding(Self.padding)
                     // Fill the viewport, so clicks and drags below the last row reach the background.
-                    .frame(maxWidth: .infinity, minHeight: viewport.height, alignment: .topLeading)
+                    .frame(maxWidth: .infinity, minHeight: viewportHeight, alignment: .topLeading)
                     .background { background }
                     .overlay(alignment: .topLeading) { rubberBandView }
                     .coordinateSpace(.named(Self.coordinateSpace))
             }
-            .onGeometryChange(for: CGSize.self) { $0.size } action: { viewport = $0 }
+            .onGeometryChange(for: Int.self) { Self.columnCount(forWidth: $0.size.width) } action: { columnCount = $0 }
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { viewportHeight = $0 }
+            .onScrollGeometryChange(for: Bool.self) { $0.contentOffset.y + $0.contentInsets.top < 1 } action: {
+                isScrolledToTop = $1
+            }
+            .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y + $0.contentInsets.top } action: { _, top in
+                cardFrames.scrolled(to: top)
+            }
+            .onScrollPhaseChange { _, phase in cardFrames.scrollPhase = phase }
+            // Reflowing moves every card. Bring the one that was at the top back there,
+            // rather than leaving the scroll offset where it was and the content shifted under it.
+            .onChange(of: columnCount) {
+                // At the top, stay there, above the folder tiles.
+                guard !isScrolledToTop, let id = cardFrames.topCard else { return }
+                // Without the animation of whatever resized the grid: an animated scroll isn't
+                // idle, so `CardFrames` would take a card from mid-reflow as the new top.
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) { proxy.scrollTo(id, anchor: .top) }
+            }
             .focusable()
             .focusEffectDisabled()
             .focused($isFocused)
@@ -109,29 +131,16 @@ struct RaindropGridView: View {
         }
     }
 
-    /// Rows of cards rather than a `LazyVGrid`, so every card in a row can stretch to the
-    /// tallest one (like `align-items: stretch`). Each row is still created lazily.
+    /// Each card is identified by its raindrop, so a change in column count moves cards
+    /// rather than rebuilding them.
     private var cards: some View {
-        LazyVStack(alignment: .leading, spacing: Self.spacing) {
-            ForEach(rows, id: \.first?.id) { row in
-                HStack(alignment: .top, spacing: Self.spacing) {
-                    ForEach(row) { raindrop in
-                        card(raindrop)
-                    }
-                    // Keep a short last row on the same column widths as the rows above.
-                    ForEach(row.count..<columnCount, id: \.self) { _ in
-                        Color.clear.frame(maxWidth: .infinity, maxHeight: 0)
-                    }
-                }
-                // The row takes its tallest card's height, and `maxHeight: .infinity` fills it.
-                .fixedSize(horizontal: false, vertical: true)
+        LazyVGrid(
+            columns: Array(repeating: GridItem(.flexible(), spacing: Self.spacing, alignment: .top), count: columnCount),
+            spacing: Self.spacing
+        ) {
+            ForEach(raindrops) { raindrop in
+                card(raindrop)
             }
-        }
-    }
-
-    private var rows: [ArraySlice<Raindrop>] {
-        stride(from: 0, to: raindrops.count, by: columnCount).map {
-            raindrops[$0..<min($0 + columnCount, raindrops.count)]
         }
     }
 
@@ -142,9 +151,9 @@ struct RaindropGridView: View {
             isPending: store.pendingIDs.contains(raindrop.id)
         )
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.coordinateSpace)) } action: {
-                cardFrames[raindrop.id] = $0
+                cardFrames.frames[raindrop.id] = $0
             }
-            .onDisappear { cardFrames[raindrop.id] = nil }
+            .onDisappear { cardFrames.frames[raindrop.id] = nil }
             .gesture(TapGesture(count: 2).onEnded { open([raindrop.id]) })
             .simultaneousGesture(TapGesture().onEnded { click(raindrop.id) })
             .draggable(containerItemID: raindrop.id)
@@ -193,7 +202,7 @@ struct RaindropGridView: View {
                         }
                         rubberBand?.current = drag.location
                         if let rubberBand {
-                            let hits = cardFrames.filter { $0.value.intersects(rubberBand.rect) }.keys
+                            let hits = cardFrames.frames.filter { $0.value.intersects(rubberBand.rect) }.keys
                             selection = rubberBand.initialSelection.union(hits)
                         }
                     }
@@ -255,6 +264,27 @@ struct RaindropGridView: View {
         for url in raindrops.filter({ ids.contains($0.id) }).compactMap(\.url) {
             openURL(url)
         }
+    }
+}
+
+/// Where each card on screen is, for rubber-band selection and for keeping the top card in
+/// place through a reflow. A reference rather than state: every card writes to it on every
+/// frame of a resize, and nothing on screen depends on it.
+private final class CardFrames {
+    var frames: [Raindrop.ID: CGRect] = [:]
+    /// The card at the top of the viewport, as the user last left it.
+    private(set) var topCard: Raindrop.ID?
+    var scrollPhase: ScrollPhase = .idle
+
+    /// Notes the top card after a scroll by the user (or a scroll animation they started).
+    /// Offsets that move while idle come from a reflow or from restoring `topCard`, and would
+    /// only make it drift to the start of its row.
+    func scrolled(to top: CGFloat) {
+        guard scrollPhase != .idle || topCard == nil else { return }
+        topCard = frames
+            .filter { $0.value.maxY > top }
+            .min { ($0.value.minY, $0.value.minX) < ($1.value.minY, $1.value.minX) }?
+            .key
     }
 }
 
@@ -329,34 +359,37 @@ struct RaindropCard: View {
         VStack(alignment: .leading, spacing: 0) {
             Color.clear
                 .aspectRatio(16 / 10, contentMode: .fit)
-                // Height from the card's width alone; otherwise a stretched row squeezes the
-                // cover's height and the 16:10 ratio shrinks its width with it.
+                // Height from the card's width alone, whatever height the grid proposes.
                 .fixedSize(horizontal: false, vertical: true)
                 .overlay { CoverImage(url: raindrop.coverURL, kind: raindrop.type) }
                 // Only trims the filled image to its frame; the card's shape rounds the top corners.
                 .clipped()
 
             VStack(alignment: .leading, spacing: 5) {
+                // Every line is reserved even when empty, so all cards are the same height.
+                // The grid then needs no measuring pass to line rows up, and a card keeps
+                // its identity (and its loaded cover) when the column count changes.
                 Text(raindrop.title)
                     .font(.headline)
-                    .lineLimit(2)
+                    .lineLimit(2, reservesSpace: true)
 
-                if !raindrop.excerpt.isEmpty {
-                    Text(raindrop.excerpt)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(3)
-                }
+                // An empty string reserves nothing, so a space stands in for a missing excerpt.
+                Text(raindrop.excerpt.isEmpty ? " " : raindrop.excerpt)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3, reservesSpace: true)
 
-                if !raindrop.tags.isEmpty {
-                    TagList(tags: raindrop.tags)
-                        .fixedSize()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .clipped()
-                }
-
-                // Pins the footer to the bottom, so footers line up across a row.
-                Spacer(minLength: 0)
+                // A tag's height, with or without tags.
+                Text(verbatim: "#")
+                    .font(.caption)
+                    .padding(.vertical, 2)
+                    .hidden()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .overlay(alignment: .leading) {
+                        TagList(tags: raindrop.tags)
+                            .fixedSize()
+                    }
+                    .clipped()
 
                 footer
                     .padding(.top, 2)
@@ -365,8 +398,7 @@ struct RaindropCard: View {
             .padding(.top, 8)
             .padding(.bottom, 10)
         }
-        // Fill whatever height the row gives, before the background, so the card itself stretches.
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, alignment: .top)
         .background(.background.secondary)
         .clipShape(.rect(cornerRadius: 12))
         .overlay {
