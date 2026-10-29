@@ -134,8 +134,9 @@ struct RaindropGridView: View {
         }
     }
 
-    /// Each card is identified by its raindrop, so a change in column count slides cards
-    /// to their new places rather than rebuilding them.
+    /// Each card is identified by its raindrop, so a change in column count moves cards
+    /// rather than rebuilding them. The move isn't animated: scrolled down, a card's new
+    /// place can be thousands of points from its old one.
     private var cards: some View {
         LazyVGrid(
             columns: Array(
@@ -150,11 +151,6 @@ struct RaindropGridView: View {
         ) {
             ForEach(raindrops) { raindrop in
                 card(raindrop)
-                    // On each card rather than the grid: only the move to a new column is
-                    // animated, and the grid itself keeps following the split view's resize.
-                    // A spring, so crossing two breakpoints in a row (5 → 4 → 3 columns)
-                    // redirects the cards mid-flight instead of starting over.
-                    .animation(.spring(duration: 0.3, bounce: 0.15), value: columnCount)
             }
         }
     }
@@ -165,9 +161,6 @@ struct RaindropGridView: View {
             isSelected: selection.contains(raindrop.id),
             isPending: store.pendingIDs.contains(raindrop.id)
         )
-            // Cover, text and footer move and resize as one with the card while it slides
-            // to a new column, rather than each animating on its own.
-            .geometryGroup()
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.coordinateSpace)) } action: {
                 cardFrames.frames[raindrop.id] = $0
             }
@@ -373,12 +366,16 @@ struct RaindropCard: View {
 
     @State private var isHovered = false
 
+    /// About 16:10 at a typical card width. Fixed rather than a ratio of the width: then a
+    /// card's height never changes as the grid resizes, and neither do the rows above the
+    /// viewport. With a ratio, every row above grew or shrank on each frame of a sidebar
+    /// animation, pushing the visible cards further the further down the grid was scrolled.
+    private static let coverHeight: CGFloat = 125
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Color.clear
-                .aspectRatio(16 / 10, contentMode: .fit)
-                // Height from the card's width alone, whatever height the grid proposes.
-                .fixedSize(horizontal: false, vertical: true)
+                .frame(height: Self.coverHeight)
                 .overlay { CoverImage(url: raindrop.coverURL, kind: raindrop.type) }
                 // Only trims the filled image to its frame; the card's shape rounds the top corners.
                 .clipped()
