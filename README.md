@@ -38,8 +38,6 @@ Running under Xcode's debugger can crash at launch with *"The window has been ma
 
 The cards collection uses `NSCollectionView` for layout, selection, and scrolling, with SwiftUI cards and folder tiles hosted in reusable items. The rest of the interface stays in SwiftUI.
 
-Run `scripts/check-grid.sh` to check the collection with 1,000 disposable sample bookmarks, including selection, reordering, and position preservation during resizing and inspector changes. It opens a temporary test window and does not use the saved account.
-
 | Path | Contents |
 | --- | --- |
 | `MacRaindrop/Models` | Codable types mirroring the Raindrop REST API |

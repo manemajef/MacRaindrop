@@ -14,8 +14,9 @@ enum GridMetrics {
     /// The narrowest a bookmark card gets. Below it, the grid drops a column and cards widen
     /// to fill the row, up to the width at which another column fits.
     static let minCardWidth: CGFloat = 180
-    /// The same for folder tiles, which have their own rows above the bookmarks.
-    static let minFolderWidth: CGFloat = 104
+    /// Folder tiles, in their own rows above the bookmarks, don't stretch: what a row doesn't
+    /// use is left at its end, so folders stay put while the grid resizes.
+    static let folderWidth: CGFloat = 104
     /// The narrowest the grid gets, between the sidebar and the inspector: about a third of a
     /// 14-inch MacBook Pro's 1512-point screen, room for two cards.
     static let minWidth: CGFloat = 440
@@ -127,7 +128,7 @@ struct GridCollectionView: NSViewRepresentable {
 
         /// Whether the folder at `index` is past the first row of a collapsed section.
         private func isHiddenFolder(_ index: Int, width: CGFloat) -> Bool {
-            !showsAllFolders && index >= GridMetrics.columns(across: width, minimum: GridMetrics.minFolderWidth)
+            !showsAllFolders && index >= GridMetrics.columns(across: width, minimum: GridMetrics.folderWidth)
         }
 
         @objc fileprivate func toggleFolders(_ sender: Any?) {
@@ -169,7 +170,7 @@ struct GridCollectionView: NSViewRepresentable {
             }
             // The button only when there's more than a row to show or hide.
             let width = collection?.bounds.width ?? 0
-            let overflows = parent.folders.count > GridMetrics.columns(across: width, minimum: GridMetrics.minFolderWidth)
+            let overflows = parent.folders.count > GridMetrics.columns(across: width, minimum: GridMetrics.folderWidth)
             header.show(SectionHeader(title: "Collections", count: parent.folders.count),
                         collapse: overflows ? !showsAllFolders : nil)
         }
@@ -211,7 +212,7 @@ struct GridCollectionView: NSViewRepresentable {
             }
             if folderHeight == 0, let folder = parent.folders.first {
                 let view = NSHostingView(rootView: FolderTile(collection: folder, isSelected: false)
-                    .frame(width: GridMetrics.minFolderWidth).environment(parent.store))
+                    .frame(width: GridMetrics.folderWidth).environment(parent.store))
                 folderHeight = ceil(view.fittingSize.height)
             }
         }
@@ -229,13 +230,14 @@ struct GridCollectionView: NSViewRepresentable {
         }
 
         /// Tiles fill the row: as many columns as fit at the minimum width, then widened.
+        /// Cards fill the row: as many columns as fit at the minimum width, then widened.
+        /// Folders keep their width (see `insetForSectionAt`).
         private func tileSize(section: Int, width: CGFloat) -> NSSize {
+            guard section == 1 else { return NSSize(width: GridMetrics.folderWidth, height: folderHeight) }
             let available = max(1, width - 2 * GridMetrics.inset)
-            let minimum = section == 0 ? GridMetrics.minFolderWidth : GridMetrics.minCardWidth
             let spacing = GridMetrics.columnSpacing
-            let columns = CGFloat(GridMetrics.columns(across: width, minimum: minimum))
-            return NSSize(width: floor((available - (columns - 1) * spacing) / columns),
-                          height: section == 0 ? folderHeight : bookmarkHeight)
+            let columns = CGFloat(GridMetrics.columns(across: width, minimum: GridMetrics.minCardWidth))
+            return NSSize(width: floor((available - (columns - 1) * spacing) / columns), height: bookmarkHeight)
         }
 
         func collectionView(_ collectionView: NSCollectionView, layout collectionViewLayout: NSCollectionViewLayout,
@@ -245,7 +247,17 @@ struct GridCollectionView: NSViewRepresentable {
             // Under a heading, the heading is the space above the section. Folder rows already
             // end in a row's spacing, so their section needs that much less below.
             let bottom = section == 0 ? max(0, inset - GridMetrics.rowSpacing) : inset
-            return NSEdgeInsets(top: showsHeaders ? 4 : inset, left: inset, bottom: bottom, right: inset)
+            return NSEdgeInsets(top: showsHeaders ? 4 : inset, left: inset, bottom: bottom,
+                                right: section == 0 ? folderRightInset(width: collectionView.bounds.width) : inset)
+        }
+
+        /// Folders keep their width and their place from the left, like icons on a desktop. The
+        /// space a row doesn't use goes to this margin; otherwise the layout spreads it between
+        /// the tiles, and every folder drifts on each frame of a sidebar or inspector animation.
+        private func folderRightInset(width: CGFloat) -> CGFloat {
+            let columns = CGFloat(GridMetrics.columns(across: width, minimum: GridMetrics.folderWidth))
+            let used = columns * GridMetrics.folderWidth + (columns - 1) * GridMetrics.columnSpacing
+            return max(GridMetrics.inset, width - GridMetrics.inset - used)
         }
 
         func collectionView(_ collectionView: NSCollectionView, layout collectionViewLayout: NSCollectionViewLayout,
