@@ -3,6 +3,9 @@ import SwiftUI
 struct SidebarView: View {
     @Environment(LibraryStore.self) private var store
     @Bindable var browser: BrowserModel
+    /// Collapsed or not, kept across launches. The chevron shows when hovering a heading.
+    @AppStorage("sidebarShowsCollections") private var showsCollections = true
+    @AppStorage("sidebarShowsTags") private var showsTags = true
 
     private var selection: Binding<SidebarItem?> {
         Binding { browser.location } set: { browser.go(to: $0) }
@@ -17,7 +20,7 @@ struct SidebarView: View {
                 row(.trash, systemImage: "trash")
             }
 
-            Section {
+            Section(isExpanded: $showsCollections) {
                 ForEach(store.collectionTree) { node in
                     CollectionRow(node: node, expandedCollections: $browser.expandedCollections)
                 }
@@ -30,7 +33,7 @@ struct SidebarView: View {
             }
 
             if !store.tags.isEmpty {
-                Section("Tags") {
+                Section("Tags", isExpanded: $showsTags) {
                     ForEach(store.tags, id: \.name) { tag in
                         Label(tag.name, systemImage: "number")
                             .badge(tag.count)

@@ -107,6 +107,9 @@ struct ContentView: View {
                 sidebar
             } detail: {
                 collection
+                    // A floor for the grid, so the sidebar and inspector can't squeeze it to a
+                    // sliver. The window can't shrink below it; the sidebar can still collapse.
+                    .frame(minWidth: GridMetrics.minWidth)
                     .toolbar { toolbar }
             }
         }

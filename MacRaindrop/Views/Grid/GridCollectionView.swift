@@ -2,8 +2,35 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// The grid's layout, in points. Card height isn't set here: it comes from the card's contents
+/// (see the Height section of `RaindropCard`), measured once in `measureTilesIfNeeded()`.
+enum GridMetrics {
+    /// Space between the grid and the edges of its column.
+    static let inset: CGFloat = 16
+    /// Gap between tiles side by side.
+    static let columnSpacing: CGFloat = 12
+    /// Gap between rows.
+    static let rowSpacing: CGFloat = 12
+    /// The narrowest a bookmark card gets. Below it, the grid drops a column and cards widen
+    /// to fill the row, up to the width at which another column fits.
+    static let minCardWidth: CGFloat = 180
+    /// The same for folder tiles, which have their own rows above the bookmarks.
+    static let minFolderWidth: CGFloat = 104
+    /// The narrowest the grid gets, between the sidebar and the inspector: about a third of a
+    /// 14-inch MacBook Pro's 1512-point screen, room for two cards.
+    static let minWidth: CGFloat = 440
+    /// The "Collections" and "Bookmarks" headings, shown when a page has both.
+    static let headerHeight: CGFloat = 40
+
+    /// How many tiles at least `minimum` wide fit across `width`.
+    static func columns(across width: CGFloat, minimum: CGFloat) -> Int {
+        let available = max(1, width - 2 * inset)
+        return max(1, Int((available + columnSpacing) / (minimum + columnSpacing)))
+    }
+}
+
 /// The desktop collection control. Bookmark content, menus, and writes stay in SwiftUI.
-struct RaindropCollectionView: NSViewRepresentable {
+struct GridCollectionView: NSViewRepresentable {
     let raindrops: [Raindrop]
     let folders: [RaindropCollection]
     @Binding var selection: Set<Raindrop.ID>
@@ -19,6 +46,9 @@ struct RaindropCollectionView: NSViewRepresentable {
         scrollView.drawsBackground = false
         scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = true
+        // The view extends under the toolbar (see `RaindropGridView`); these insets start the
+        // content below it, and let it scroll up underneath, like a SwiftUI `ScrollView`.
+        scrollView.automaticallyAdjustsContentInsets = true
         let collection = BookmarkCollectionView()
         collection.collectionViewLayout = NSCollectionViewFlowLayout()
         collection.isSelectable = true
@@ -27,6 +57,8 @@ struct RaindropCollectionView: NSViewRepresentable {
         collection.backgroundColors = [.clear]
         collection.autoresizingMask = [.width]
         collection.register(CollectionItem.self, forItemWithIdentifier: CollectionItem.identifier)
+        collection.register(SectionHeaderView.self, forSupplementaryViewOfKind: NSCollectionView.elementKindSectionHeader,
+                            withIdentifier: SectionHeaderView.identifier)
         collection.setDraggingSourceOperationMask([.copy, .move], forLocal: true)
         collection.setDraggingSourceOperationMask(.copy, forLocal: false)
         collection.registerForDraggedTypes([
@@ -43,14 +75,14 @@ struct RaindropCollectionView: NSViewRepresentable {
     }
 
     final class Coordinator: NSObject, NSCollectionViewDelegateFlowLayout {
-        private var parent: RaindropCollectionView
+        private var parent: GridCollectionView
         private weak var collection: BookmarkCollectionView?
         private var dataSource: NSCollectionViewDiffableDataSource<Int, Entry>!
         private var content: [Entry: TileContent] = [:]
         private var bookmarkHeight: CGFloat = 0
         private var folderHeight: CGFloat = 0
 
-        init(_ parent: RaindropCollectionView) { self.parent = parent }
+        init(_ parent: GridCollectionView) { self.parent = parent }
 
         fileprivate func attach(to collection: BookmarkCollectionView) {
             self.collection = collection
@@ -61,15 +93,88 @@ struct RaindropCollectionView: NSViewRepresentable {
             collection.selectBookmarks = { [weak self] in self?.selectAllBookmarks() }
             collection.selectionChanged = { [weak self] in self?.publishSelection() }
             collection.contextMenu = { [weak self] path in self?.menu(at: path) }
+            collection.reflowed = { [weak self] in self?.refreshHeaders() }
             dataSource = NSCollectionViewDiffableDataSource(collectionView: collection) { [weak self] collection, path, entry in
                 guard let self, let content = self.content[entry] else { return nil }
                 let item = collection.makeItem(withIdentifier: CollectionItem.identifier, for: path) as! CollectionItem
-                item.configure(content, store: self.parent.store)
+                item.configure(content, store: self.parent.store, actions: self.actions(for: entry))
                 return item
+            }
+            dataSource.supplementaryViewProvider = { [weak self] collection, kind, path in
+                let header = collection.makeSupplementaryView(ofKind: kind, withIdentifier: SectionHeaderView.identifier,
+                                                              for: path) as! SectionHeaderView
+                header.collapseButton.target = self
+                header.collapseButton.action = #selector(Coordinator.toggleFolders(_:))
+                self?.configure(header, section: path.section)
+                return header
             }
         }
 
-        fileprivate func update(_ parent: RaindropCollectionView) {
+        // MARK: Folders section
+
+        // Collapsed, the folders section shows the first row, like Finder's "Show More". Not
+        // `NSCollectionViewFlowLayout.collapseSection(at:)`: instead of the horizontally scrolling
+        // row it's documented to give, it squeezed every folder into the width, overlapping.
+        //
+        // Every folder stays in the data; collapsed, those past the first row are laid out with
+        // no height. So collapsing, and a new width changing how many fit, are layout changes
+        // only. (Changing the data during a resize scrolled the grid after the reflow anchoring.)
+
+        /// Whether every folder shows, rather than just the first row. One row by default; the
+        /// choice is kept across pages and launches.
+        private static let showsAllFoldersKey = "gridShowsAllFolders"
+        private var showsAllFolders = UserDefaults.standard.bool(forKey: showsAllFoldersKey)
+
+        /// Whether the folder at `index` is past the first row of a collapsed section.
+        private func isHiddenFolder(_ index: Int, width: CGFloat) -> Bool {
+            !showsAllFolders && index >= GridMetrics.columns(across: width, minimum: GridMetrics.minFolderWidth)
+        }
+
+        @objc fileprivate func toggleFolders(_ sender: Any?) {
+            showsAllFolders.toggle()
+            UserDefaults.standard.set(showsAllFolders, forKey: Self.showsAllFoldersKey)
+            collection?.collectionViewLayout?.invalidateLayout()
+            refreshHeaders()
+        }
+
+        /// Folders, then bookmarks. Applied only when something changed.
+        private func applySnapshot() {
+            var snapshot = NSDiffableDataSourceSnapshot<Int, Entry>()
+            snapshot.appendSections([0, 1])
+            snapshot.appendItems(parent.folders.map { .folder($0.id) }, toSection: 0)
+            snapshot.appendItems(parent.raindrops.map { .bookmark($0.id) }, toSection: 1)
+            if snapshot.itemIdentifiers != dataSource.snapshot().itemIdentifiers {
+                dataSource.apply(snapshot, animatingDifferences: false)
+            }
+        }
+
+        /// Headings show counts, and the folders heading's button depends on the width.
+        private func refreshHeaders() {
+            guard let collection else { return }
+            for path in collection.indexPathsForVisibleSupplementaryElements(ofKind: NSCollectionView.elementKindSectionHeader) {
+                if let header = collection.supplementaryView(forElementKind: NSCollectionView.elementKindSectionHeader,
+                                                             at: path) as? SectionHeaderView {
+                    configure(header, section: path.section)
+                }
+            }
+        }
+
+        /// Headings only when a page has folders: on its own, a grid of bookmarks needs none.
+        private var showsHeaders: Bool { !parent.folders.isEmpty }
+
+        private func configure(_ header: SectionHeaderView, section: Int) {
+            guard section == 0 else {
+                header.show(SectionHeader(title: "Bookmarks", count: parent.raindrops.count), collapse: nil)
+                return
+            }
+            // The button only when there's more than a row to show or hide.
+            let width = collection?.bounds.width ?? 0
+            let overflows = parent.folders.count > GridMetrics.columns(across: width, minimum: GridMetrics.minFolderWidth)
+            header.show(SectionHeader(title: "Collections", count: parent.folders.count),
+                        collapse: overflows ? !showsAllFolders : nil)
+        }
+
+        fileprivate func update(_ parent: GridCollectionView) {
             let changed = content.isEmpty || self.parent.raindrops != parent.raindrops || self.parent.folders != parent.folders
             self.parent = parent
             guard let collection else { return }
@@ -79,19 +184,14 @@ struct RaindropCollectionView: NSViewRepresentable {
                     + parent.raindrops.map { (Entry.bookmark($0.id), TileContent.bookmark($0)) }
                 )
                 measureTilesIfNeeded()
-                var snapshot = NSDiffableDataSourceSnapshot<Int, Entry>()
-                snapshot.appendSections([0, 1])
-                snapshot.appendItems(parent.folders.map { .folder($0.id) }, toSection: 0)
-                snapshot.appendItems(parent.raindrops.map { .bookmark($0.id) }, toSection: 1)
-                if snapshot.itemIdentifiers != dataSource.snapshot().itemIdentifiers {
-                    dataSource.apply(snapshot, animatingDifferences: false)
-                }
+                applySnapshot()
                 for path in collection.indexPathsForVisibleItems() {
                     if let entry = dataSource.itemIdentifier(for: path), let content = content[entry],
                        let item = collection.item(at: path) as? CollectionItem {
-                        item.configure(content, store: parent.store)
+                        item.configure(content, store: parent.store, actions: actions(for: entry))
                     }
                 }
+                refreshHeaders()
             }
             let nativeSelection = Set(collection.selectionIndexPaths.compactMap { path -> Raindrop.ID? in
                 if case .bookmark(let id) = dataSource.itemIdentifier(for: path) { return id }
@@ -102,6 +202,8 @@ struct RaindropCollectionView: NSViewRepresentable {
             }
         }
 
+        /// Every tile of a kind is the same height, so one is measured, once, and used for all.
+        /// Changing what decides it (`RaindropCard`'s Height section) needs a relaunch.
         private func measureTilesIfNeeded() {
             if bookmarkHeight == 0, let raindrop = parent.raindrops.first {
                 let view = NSHostingView(rootView: RaindropCard(raindrop: raindrop, isSelected: false).frame(width: 200))
@@ -109,31 +211,56 @@ struct RaindropCollectionView: NSViewRepresentable {
             }
             if folderHeight == 0, let folder = parent.folders.first {
                 let view = NSHostingView(rootView: FolderTile(collection: folder, isSelected: false)
-                    .frame(width: 200).environment(parent.store))
+                    .frame(width: GridMetrics.minFolderWidth).environment(parent.store))
                 folderHeight = ceil(view.fittingSize.height)
             }
         }
 
         func collectionView(_ collectionView: NSCollectionView, layout collectionViewLayout: NSCollectionViewLayout,
                             sizeForItemAt indexPath: IndexPath) -> NSSize {
-            let available = max(1, collectionView.bounds.width - 32)
-            let minimum: CGFloat = indexPath.section == 0 ? 170 : 180
-            let columns = max(1, floor((available + 8) / (minimum + 8)))
-            return NSSize(width: floor((available - (columns - 1) * 8) / columns),
-                          height: indexPath.section == 0 ? folderHeight : bookmarkHeight)
+            let width = collectionView.bounds.width
+            var size = tileSize(section: indexPath.section, width: width)
+            if indexPath.section == 0 {
+                // Folder rows carry their own spacing (see `minimumLineSpacingForSectionAt`), so
+                // a hidden folder's zero-height row takes no space at all.
+                size.height = isHiddenFolder(indexPath.item, width: width) ? 0 : size.height + GridMetrics.rowSpacing
+            }
+            return size
+        }
+
+        /// Tiles fill the row: as many columns as fit at the minimum width, then widened.
+        private func tileSize(section: Int, width: CGFloat) -> NSSize {
+            let available = max(1, width - 2 * GridMetrics.inset)
+            let minimum = section == 0 ? GridMetrics.minFolderWidth : GridMetrics.minCardWidth
+            let spacing = GridMetrics.columnSpacing
+            let columns = CGFloat(GridMetrics.columns(across: width, minimum: minimum))
+            return NSSize(width: floor((available - (columns - 1) * spacing) / columns),
+                          height: section == 0 ? folderHeight : bookmarkHeight)
         }
 
         func collectionView(_ collectionView: NSCollectionView, layout collectionViewLayout: NSCollectionViewLayout,
                             insetForSectionAt section: Int) -> NSEdgeInsets {
             guard collectionView.numberOfItems(inSection: section) > 0 else { return NSEdgeInsets() }
-            return NSEdgeInsets(top: section == 1 && !parent.folders.isEmpty ? 0 : 16, left: 16, bottom: 16, right: 16)
+            let inset = GridMetrics.inset
+            // Under a heading, the heading is the space above the section. Folder rows already
+            // end in a row's spacing, so their section needs that much less below.
+            let bottom = section == 0 ? max(0, inset - GridMetrics.rowSpacing) : inset
+            return NSEdgeInsets(top: showsHeaders ? 4 : inset, left: inset, bottom: bottom, right: inset)
         }
 
         func collectionView(_ collectionView: NSCollectionView, layout collectionViewLayout: NSCollectionViewLayout,
-                            minimumInteritemSpacingForSectionAt section: Int) -> CGFloat { 8 }
+                            referenceSizeForHeaderInSection section: Int) -> NSSize {
+            guard showsHeaders, collectionView.numberOfItems(inSection: section) > 0 else { return .zero }
+            return NSSize(width: collectionView.bounds.width, height: GridMetrics.headerHeight)
+        }
 
         func collectionView(_ collectionView: NSCollectionView, layout collectionViewLayout: NSCollectionViewLayout,
-                            minimumLineSpacingForSectionAt section: Int) -> CGFloat { 8 }
+                            minimumInteritemSpacingForSectionAt section: Int) -> CGFloat { GridMetrics.columnSpacing }
+
+        func collectionView(_ collectionView: NSCollectionView, layout collectionViewLayout: NSCollectionViewLayout,
+                            minimumLineSpacingForSectionAt section: Int) -> CGFloat {
+            section == 0 ? 0 : GridMetrics.rowSpacing
+        }
 
         func collectionView(_ collectionView: NSCollectionView, shouldSelectItemsAt indexPaths: Set<IndexPath>) -> Set<IndexPath> {
             // Folder selection is singular and never mixed with bookmark selection.
@@ -164,6 +291,30 @@ struct RaindropCollectionView: NSViewRepresentable {
                 return nil
             })
             if parent.selection != ids { parent.selection = ids }
+        }
+
+        /// What VoiceOver can do with a tile. The hosted card can't be clicked (the collection
+        /// takes the mouse), so without these, pressing it with VoiceOver did nothing.
+        private func actions(for entry: Entry) -> TileActions {
+            TileActions(
+                select: { [weak self] in self?.select(entry) },
+                open: { [weak self] in self?.open(entry) }
+            )
+        }
+
+        /// Selects just this tile, as a click would.
+        private func select(_ entry: Entry) {
+            guard let collection, let path = dataSource.indexPath(for: entry) else { return }
+            collection.selectionIndexPaths = [path]
+            collectionView(collection, didSelectItemsAt: [path])
+        }
+
+        private func open(_ entry: Entry) {
+            switch entry {
+            case .folder(let id): parent.openFolder(id)
+            case .bookmark(let id):
+                if let url = parent.store.raindrop(id: id)?.url { parent.open(url) }
+            }
         }
 
         private func activateSelection() {
@@ -279,10 +430,16 @@ private enum TileContent: Equatable {
     }
 }
 
+private struct TileActions {
+    let select: () -> Void
+    let open: () -> Void
+}
+
 private struct CollectionTile: View {
     @Environment(LibraryStore.self) private var store
     let content: TileContent
     let isSelected: Bool
+    let actions: TileActions
 
     var body: some View {
         Group {
@@ -294,6 +451,9 @@ private struct CollectionTile: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        // Pressing a tile with VoiceOver selects it, like a click.
+        .accessibilityAction { actions.select() }
+        .accessibilityAction(named: "Open") { actions.open() }
     }
 }
 
@@ -301,6 +461,7 @@ private final class CollectionItem: NSCollectionViewItem {
     static let identifier = NSUserInterfaceItemIdentifier("RaindropTile")
     private var content: TileContent?
     private var store: LibraryStore?
+    private var actions: TileActions?
     private let hostingView = TileHostingView(rootView: AnyView(EmptyView()))
 
     override var isSelected: Bool {
@@ -311,13 +472,17 @@ private final class CollectionItem: NSCollectionViewItem {
         hostingView.sizingOptions = []
         // The native item must remain hittable when its SwiftUI content passes mouse events through.
         let container = NSView()
+        // A folder hidden by a collapsed section has no height, and must draw nothing.
+        container.clipsToBounds = true
         hostingView.frame = container.bounds
         hostingView.autoresizingMask = [.width, .height]
         container.addSubview(hostingView)
         view = container
     }
 
-    func configure(_ content: TileContent, store: LibraryStore) {
+    func configure(_ content: TileContent, store: LibraryStore, actions: TileActions) {
+        // Actions for the same content do the same thing, so a change of content is what needs a render.
+        self.actions = actions
         guard self.content != content || self.store !== store else { return }
         self.content = content
         self.store = store
@@ -325,8 +490,8 @@ private final class CollectionItem: NSCollectionViewItem {
     }
 
     private func render() {
-        guard let content, let store else { return }
-        hostingView.rootView = AnyView(CollectionTile(content: content, isSelected: isSelected)
+        guard let content, let store, let actions else { return }
+        hostingView.rootView = AnyView(CollectionTile(content: content, isSelected: isSelected, actions: actions)
             .environment(store).id(content.id))
     }
 
@@ -334,7 +499,65 @@ private final class CollectionItem: NSCollectionViewItem {
         super.prepareForReuse()
         content = nil
         store = nil
+        actions = nil
         hostingView.rootView = AnyView(EmptyView())
+    }
+}
+
+/// A section's heading, in the style of Finder's groups: its name, then how many it holds.
+private struct SectionHeader: View {
+    let title: String
+    let count: Int
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(title)
+                .font(.title3.weight(.semibold))
+            Text(count, format: .number)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, GridMetrics.inset)
+        .padding(.bottom, 6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// A section heading, with a Show All / Show Less button for the folders.
+private final class SectionHeaderView: NSView, NSCollectionViewElement {
+    static let identifier = NSUserInterfaceItemIdentifier("SectionHeader")
+    private let hostingView = TileHostingView(rootView: AnyView(EmptyView()))
+    let collapseButton = NSButton(title: "", target: nil, action: nil)
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        hostingView.sizingOptions = []
+        hostingView.frame = bounds
+        hostingView.autoresizingMask = [.width, .height]
+        addSubview(hostingView)
+
+        // A plain accent-colored text button, like Finder's "Show More" in a group heading.
+        collapseButton.isBordered = false
+        collapseButton.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(collapseButton)
+        NSLayoutConstraint.activate([
+            collapseButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -GridMetrics.inset),
+            collapseButton.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6),
+        ])
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    /// `collapse` is whether the section is collapsed, or nil for no button.
+    func show(_ header: SectionHeader, collapse: Bool?) {
+        hostingView.rootView = AnyView(header)
+        collapseButton.isHidden = collapse == nil
+        collapseButton.attributedTitle = NSAttributedString(
+            string: collapse == true ? "Show All" : "Show Less",
+            attributes: [.foregroundColor: NSColor.controlAccentColor, .font: NSFont.systemFont(ofSize: NSFont.systemFontSize)]
+        )
     }
 }
 
@@ -350,6 +573,8 @@ private final class BookmarkCollectionView: NSCollectionView {
     var selectBookmarks: (() -> Void)?
     var selectionChanged: (() -> Void)?
     var contextMenu: ((IndexPath) -> NSMenu?)?
+    /// After the layout changes for a new width.
+    var reflowed: (() -> Void)?
     var preferredAnchor: IndexPath?
     private var isReflowing = false
 
@@ -408,11 +633,15 @@ private final class BookmarkCollectionView: NSCollectionView {
         super.setFrameSize(newSize)
         collectionViewLayout?.invalidateLayout()
         layoutSubtreeIfNeeded()
+        reflowed?()
 
         if let (path, oldFrame) = anchor, let newFrame = layoutAttributesForItem(at: path)?.frame {
             let clip = scrollView.contentView
-            let maximum = max(0, (collectionViewLayout?.collectionViewContentSize.height ?? frame.height) - clip.bounds.height)
-            let y = min(maximum, max(0, newFrame.minY - (oldFrame.minY - viewport.minY)))
+            // The content insets (the toolbar on top) extend how far the content can scroll.
+            let minimum = -clip.contentInsets.top
+            let maximum = max(minimum, (collectionViewLayout?.collectionViewContentSize.height ?? frame.height)
+                - clip.bounds.height + clip.contentInsets.bottom)
+            let y = min(maximum, max(minimum, newFrame.minY - (oldFrame.minY - viewport.minY)))
             clip.scroll(to: NSPoint(x: clip.bounds.minX, y: y))
             scrollView.reflectScrolledClipView(clip)
         }

@@ -45,3 +45,4 @@ Run `scripts/check-grid.sh` to check the collection with 1,000 disposable sample
 | `MacRaindrop/Models` | Codable types mirroring the Raindrop REST API |
 | `MacRaindrop/Data` | API client, sample-data service, SwiftData cache, sync engine, store |
 | `MacRaindrop/Views` | Sidebar, list, detail/inspector views |
+| `MacRaindrop/Views/Grid` | Cards mode: the AppKit collection (`GridCollectionView`, with layout settings in `GridMetrics`), cards and folder tiles |

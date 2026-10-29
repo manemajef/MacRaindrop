@@ -21,13 +21,15 @@ private struct GridCheckView: View {
     let opened: (URL) -> Void
     var body: some View {
         HStack(spacing: 0) {
-            RaindropCollectionView(raindrops: state.raindrops, folders: state.folders,
+            GridCollectionView(raindrops: state.raindrops, folders: state.folders,
                 selection: $state.selection, store: store, prompts: ActionPrompts(),
                 openFolder: { _ in }, open: opened)
             if state.showsInspector {
                 Color.secondary.opacity(0.1).frame(width: 300)
             }
         }
+        // As in the app's window; without it the screenshot has white text on a white page.
+        .background(.windowBackground)
     }
 }
 
@@ -59,7 +61,9 @@ private struct GridCheck {
             from: JSONSerialization.data(withJSONObject: fixture))
         let store = LibraryStore.preview
         try store.apply(raindrops)
-        let state = GridState(raindrops: raindrops, folders: Array(store.collections.prefix(4)))
+        // All 15 sample collections: more than fit in one row, so the folders section has something to collapse.
+        UserDefaults.standard.removeObject(forKey: "gridShowsAllFolders")
+        let state = GridState(raindrops: raindrops, folders: store.collections)
         var opened: [URL] = []
         let host = NSHostingView(rootView: GridCheckView(state: state, store: store, opened: { opened.append($0) }))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1_000, height: 700),
@@ -70,8 +74,31 @@ private struct GridCheck {
         settle()
         let grid = collection(in: host)!
         assert(grid.numberOfItems(inSection: 1) == 1_000)
+        // Folders start as one row: as many as fit; the rest are laid out with no height.
         assert(grid.numberOfItems(inSection: 0) == state.folders.count)
+        let folderColumns = GridMetrics.columns(across: grid.bounds.width, minimum: GridMetrics.minFolderWidth)
+        func shownFolders() -> Int {
+            (0..<grid.numberOfItems(inSection: 0)).filter {
+                (grid.layoutAttributesForItem(at: IndexPath(item: $0, section: 0))?.frame.height ?? 0) > 0
+            }.count
+        }
+        assert(folderColumns < state.folders.count)
+        assert(shownFolders() == folderColumns, "Folders should start as one row")
         assert(grid.visibleItems().count < 100, "Collection should instantiate a small visible subset")
+
+        // The heading's button shows them all, and the choice is kept.
+        let foldersHeader = grid.supplementaryView(forElementKind: NSCollectionView.elementKindSectionHeader,
+            at: IndexPath(item: 0, section: 0))!
+        let collapseButton = foldersHeader.subviews.compactMap { $0 as? NSButton }.first!
+        assert(!collapseButton.isHidden && collapseButton.title == "Show All", "A collapsed, overflowing folders section offers Show All")
+        collapseButton.performClick(nil)
+        settle()
+        assert(shownFolders() == state.folders.count, "Show All should show every folder")
+        assert(UserDefaults.standard.bool(forKey: "gridShowsAllFolders"), "Expanding should be remembered")
+        assert(collapseButton.title == "Show Less")
+        collapseButton.performClick(nil)
+        settle()
+        assert(shownFolders() == folderColumns, "Show Less should go back to one row")
         let first = grid.layoutAttributesForItem(at: IndexPath(item: 0, section: 1))!.frame
         assert(first.width >= 180 && first.height > 200, "Hosted cards must have a usable measured size")
         let row = (0..<10).compactMap { grid.layoutAttributesForItem(at: IndexPath(item: $0, section: 1))?.frame }
@@ -155,11 +182,16 @@ private struct GridCheck {
             assert(grid.selectionIndexPaths == [folder])
         }
         let screenshot = ProcessInfo.processInfo.environment["GRID_CHECK_IMAGE"]
+        if screenshot != nil {
+            // The top of the page, where the folders and both headings are.
+            grid.scroll(.zero)
+            settle()
+        }
         if let screenshot, let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
             host.cacheDisplay(in: host.bounds, to: bitmap)
             try bitmap.representation(using: .png, properties: [:])?.write(to: URL(filePath: screenshot))
         }
         window.orderOut(nil)
-        print("PASS: 1,000 items; bounded visible views; filled rows; selection binding; resize and inspector anchoring; arrow keys; Return; drag payload; reorder; Select All; folder selection")
+        print("PASS: 1,000 items; bounded visible views; filled rows; selection binding; resize and inspector anchoring; arrow keys; Return; drag payload; reorder; Select All; folder selection; collapsible folders")
     }
 }

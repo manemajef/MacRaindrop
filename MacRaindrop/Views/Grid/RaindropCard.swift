@@ -1,71 +1,5 @@
 import SwiftUI
 
-/// SwiftUI owns the content and actions; AppKit owns collection layout and selection.
-struct RaindropGridView: View {
-    @Environment(LibraryStore.self) private var store
-    @Environment(ActionPrompts.self) private var prompts
-    @Environment(\.openURL) private var openURL
-    let raindrops: [Raindrop]
-    @Binding var selection: Set<Raindrop.ID>
-    var folders: [RaindropCollection] = []
-    var openFolder: (RaindropCollection.ID) -> Void = { _ in }
-
-    var body: some View {
-        RaindropCollectionView(
-            raindrops: raindrops,
-            folders: folders,
-            selection: $selection,
-            store: store,
-            prompts: prompts,
-            openFolder: openFolder,
-            open: { openURL($0) }
-        )
-    }
-}
-
-/// A subcollection at the top of the grid: its name, and what's inside.
-struct FolderTile: View {
-    @Environment(LibraryStore.self) private var store
-    let collection: RaindropCollection
-    let isSelected: Bool
-
-    private var summary: String {
-        let bookmarks = store.count(for: .collection(collection.id))
-        let folders = store.subcollections(of: collection.id).count
-        var parts = ["\(bookmarks) bookmark\(bookmarks == 1 ? "" : "s")"]
-        if folders > 0 { parts.append("\(folders) folder\(folders == 1 ? "" : "s")") }
-        return parts.formatted(.list(type: .and, width: .narrow))
-    }
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "folder.fill")
-                .font(.title2)
-                .foregroundStyle(.tint)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(collection.title)
-                    .font(.headline)
-                    .lineLimit(1)
-                Text(summary)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(10)
-        .background(.background.secondary, in: .rect(cornerRadius: 12))
-        .overlay {
-            if isSelected {
-                RoundedRectangle(cornerRadius: 12).strokeBorder(.tint, lineWidth: 3)
-            }
-        }
-        .contentShape(.rect(cornerRadius: 12))
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
-    }
-}
-
 /// A card in the style of Raindrop's iOS grid: cover, title, excerpt, tags, then source and date.
 struct RaindropCard: View {
     let raindrop: Raindrop
@@ -73,13 +7,19 @@ struct RaindropCard: View {
     /// A write to this raindrop is waiting for the server.
     var isPending = false
 
-    @State private var isHovered = false
+    // MARK: Height
+    //
+    // There's no height setting as such: every card is the same height, and the grid measures
+    // one card at launch (`GridCollectionView`) and uses that for all of them. These decide it.
 
     /// About 16:10 at a typical card width. Fixed rather than a ratio of the width: then a
     /// card's height never changes as the grid resizes, and neither do the rows above the
     /// viewport. With a ratio, every row above grew or shrank on each frame of a sidebar
     /// animation, pushing the visible cards further the further down the grid was scrolled.
-    private static let coverHeight: CGFloat = 125
+    static let coverHeight: CGFloat = 125
+    /// Lines kept for the title and the excerpt, even when they're shorter or empty.
+    static let titleLines = 2
+    static let excerptLines = 3
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -95,13 +35,13 @@ struct RaindropCard: View {
                 // its identity (and its loaded cover) when the column count changes.
                 Text(raindrop.title)
                     .font(.headline)
-                    .lineLimit(2, reservesSpace: true)
+                    .lineLimit(Self.titleLines, reservesSpace: true)
 
                 // An empty string reserves nothing, so a space stands in for a missing excerpt.
                 Text(raindrop.excerpt.isEmpty ? " " : raindrop.excerpt)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                    .lineLimit(3, reservesSpace: true)
+                    .lineLimit(Self.excerptLines, reservesSpace: true)
 
                 // A tag's height, with or without tags.
                 Text(verbatim: "#")
@@ -128,8 +68,6 @@ struct RaindropCard: View {
         .overlay {
             if isSelected {
                 RoundedRectangle(cornerRadius: 12).strokeBorder(.tint, lineWidth: 3)
-            } else if isHovered {
-                RoundedRectangle(cornerRadius: 12).strokeBorder(.separator, lineWidth: 1)
             }
         }
         .overlay(alignment: .topTrailing) {
@@ -142,7 +80,6 @@ struct RaindropCard: View {
             }
         }
         .contentShape(.rect(cornerRadius: 12))
-        .onHover { isHovered = $0 }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
@@ -172,33 +109,38 @@ struct RaindropCard: View {
     }
 }
 
-extension View {
-    /// Lets the raindrops inside drag out as URLs, all of the selection at once when a selected one is dragged.
-    func raindropDragContainer(selection: Set<Raindrop.ID>) -> some View {
-        modifier(RaindropDragContainer(selection: selection))
+#Preview("Variants") {
+    let all = LibraryStore.preview.raindrops(in: .all)
+    // One of each kind the sample data has, then the selected and pending states.
+    let tagged = all.first { !$0.tags.isEmpty } ?? all[0]
+    let noExcerpt = all.first { $0.excerpt.isEmpty } ?? all[1]
+    let favorite = all.first { $0.important } ?? all[2]
+    Grid(horizontalSpacing: GridMetrics.columnSpacing, verticalSpacing: GridMetrics.rowSpacing) {
+        GridRow {
+            RaindropCard(raindrop: tagged, isSelected: false)
+            RaindropCard(raindrop: noExcerpt, isSelected: false)
+            RaindropCard(raindrop: favorite, isSelected: false)
+        }
+        GridRow {
+            RaindropCard(raindrop: all[3], isSelected: true)
+            RaindropCard(raindrop: all[4], isSelected: false, isPending: true)
+            RaindropCard(raindrop: all[5], isSelected: false)
+        }
     }
+    .frame(width: 3 * 200 + 2 * GridMetrics.columnSpacing)
+    .padding(GridMetrics.inset)
 }
 
-private struct RaindropDragContainer: ViewModifier {
-    @Environment(LibraryStore.self) private var store
-    let selection: Set<Raindrop.ID>
-
-    func body(content: Content) -> some View {
-        content
-            .dragContainer(for: RaindropLink.self) { ids in
-                ids.compactMap { id in
-                    store.raindrop(id: id)?.url.map { RaindropLink(id: id, url: $0) }
-                }
-            }
-            .dragContainerSelection(Array(selection))
+#Preview("Narrowest and Widest") {
+    let raindrop = LibraryStore.preview.raindrops(in: .all).first { !$0.tags.isEmpty }!
+    // Cards stretch from the minimum up to just short of the width where another column fits.
+    // With two columns that's (3 × minimum + spacing) / 2.
+    let widest = (3 * GridMetrics.minCardWidth + GridMetrics.columnSpacing) / 2
+    HStack(alignment: .top, spacing: GridMetrics.columnSpacing) {
+        RaindropCard(raindrop: raindrop, isSelected: false)
+            .frame(width: GridMetrics.minCardWidth)
+        RaindropCard(raindrop: raindrop, isSelected: false)
+            .frame(width: widest)
     }
-}
-
-#Preview {
-    @Previewable @State var selection: Set<Raindrop.ID> = []
-    let store = LibraryStore.preview
-    RaindropGridView(raindrops: store.raindrops(in: .all), selection: $selection)
-        .frame(width: 800, height: 600)
-        .environment(store)
-        .environment(ActionPrompts())
+    .padding(GridMetrics.inset)
 }
