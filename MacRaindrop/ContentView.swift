@@ -121,12 +121,10 @@ struct ContentView: View {
         EditAndInspectorToolbar(selection: selectedRaindrops, isInspectorPresented: $showInspector)
     }
 
+    /// Gets the model itself rather than bindings made here: a binding built from closures
+    /// never compares equal, so the sidebar would redraw (and recount) on every click.
     private var sidebar: some View {
-        @Bindable var browser = browser
-        return SidebarView(
-            selection: Binding { browser.location } set: { browser.go(to: $0) },
-            expandedCollections: $browser.expandedCollections
-        )
+        SidebarView(browser: browser)
     }
 
     private var title: String {

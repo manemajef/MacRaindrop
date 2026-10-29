@@ -8,7 +8,7 @@ extension LibraryStore {
     }
 
     func raindrop(id: Raindrop.ID) -> Raindrop? {
-        raindrops.first { $0.id == id }
+        indexByID[id].map { raindrops[$0] }
     }
 
     func title(for item: SidebarItem) -> String {
@@ -53,16 +53,14 @@ extension LibraryStore {
         return ancestors
     }
 
-    /// Every tag in use, with how many raindrops carry it, most used first.
-    var tags: [(name: String, count: Int)] {
-        let counts = raindrops.filter { !$0.removed }.flatMap(\.tags).reduce(into: [:]) { $0[$1, default: 0] += 1 }
-        return counts
-            .map { (name: $0.key, count: $0.value) }
-            .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
-    }
-
+    /// Remembered until `raindrops` changes, so asking again is free.
     func raindrops(in item: SidebarItem, matching query: String = "", sortedBy sort: RaindropSort = .newest) -> [Raindrop] {
-        let scoped = raindrops.filter { raindrop in
+        // Read `raindrops` even when the answer is remembered, so the caller still observes it.
+        let all = raindrops
+        let key = RaindropQuery(item: item, text: query, sort: sort)
+        if let remembered = queryResults[key] { return remembered }
+
+        let scoped = all.filter { raindrop in
             let inTrash = raindrop.isInTrash
             switch item {
             case .trash: return inTrash
@@ -80,11 +78,15 @@ extension LibraryStore {
                 .contains { $0.localizedStandardContains(query) }
                 || raindrop.tags.contains { $0.localizedStandardContains(query) }
         }
-        return matched.sorted(by: sort.areInIncreasingOrder)
+        let result = matched.sorted(by: sort.areInIncreasingOrder)
+        // Each search keystroke is a new query; don't keep them all.
+        if queryResults.count >= 16 { queryResults.removeAll() }
+        queryResults[key] = result
+        return result
     }
 
     func count(for item: SidebarItem) -> Int {
-        raindrops(in: item).count
+        counts[item] ?? 0
     }
 
     func canModify(_ ids: some Sequence<Raindrop.ID>) -> Bool {

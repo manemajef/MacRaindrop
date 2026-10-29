@@ -36,6 +36,13 @@ enum RaindropSort: String, CaseIterable, Identifiable {
     }
 }
 
+/// A filtered, sorted list of raindrops, as `LibraryStore.raindrops(in:matching:sortedBy:)` returns it.
+struct RaindropQuery: Hashable {
+    var item: SidebarItem
+    var text: String
+    var sort: RaindropSort
+}
+
 /// A collection plus its nested children, for the sidebar outline.
 struct CollectionNode: Identifiable, Hashable {
     let collection: RaindropCollection
@@ -55,7 +62,13 @@ final class LibraryStore {
 
     private(set) var phase: Phase = .idle
     private(set) var collections: [RaindropCollection] = []
-    private(set) var raindrops: [Raindrop] = []
+    private(set) var raindrops: [Raindrop] = [] {
+        didSet { rebuildDerivedState() }
+    }
+    /// How many raindrops each sidebar item shows. Counted once per change, not once per row.
+    private(set) var counts: [SidebarItem: Int] = [:]
+    /// Every tag in use, with how many raindrops carry it, most used first.
+    private(set) var tags: [(name: String, count: Int)] = []
     /// True while syncing, including when cached data is already on screen.
     private(set) var isSyncing = false
     private(set) var lastSyncedAt: Date?
@@ -79,6 +92,11 @@ final class LibraryStore {
     /// The end of the queue that syncs and writes run on, one at a time. A sync that started
     /// before a write can then never put the pre-write copy back over the server's answer.
     @ObservationIgnored private var lastOperation: Task<Void, Never>?
+    /// Where each raindrop is in `raindrops`, for `raindrop(id:)`.
+    @ObservationIgnored private(set) var indexByID: [Raindrop.ID: Int] = [:]
+    /// Filtered and sorted lists already worked out, until `raindrops` changes. Views ask for
+    /// the same list several times per update, and on every selection change.
+    @ObservationIgnored var queryResults: [RaindropQuery: [Raindrop]] = [:]
 
     var sourceName: String { service.name }
 
@@ -183,19 +201,23 @@ final class LibraryStore {
     func apply(_ updated: [Raindrop]) throws {
         try cache.upsertRaindrops(updated)
         try cache.save()
+        // One assignment, so the derived state is rebuilt once rather than once per raindrop.
+        var all = raindrops
         for raindrop in updated {
-            if let index = raindrops.firstIndex(where: { $0.id == raindrop.id }) {
-                raindrops[index] = raindrop
+            if let index = indexByID[raindrop.id] {
+                all[index] = raindrop
             } else {
-                raindrops.append(raindrop)
+                all.append(raindrop)
             }
         }
+        raindrops = all
     }
 
     /// Drops raindrops the server deleted for good.
     func forget(_ ids: [Raindrop.ID]) throws {
         try cache.deleteRaindrops(ids)
         try cache.save()
+        let ids = Set(ids)
         raindrops.removeAll { ids.contains($0.id) }
     }
 
@@ -208,6 +230,31 @@ final class LibraryStore {
         } else {
             collections.append(collection)
         }
+    }
+
+    private func rebuildDerivedState() {
+        indexByID = Dictionary(raindrops.enumerated().map { ($1.id, $0) }) { first, _ in first }
+        queryResults = [:]
+
+        var counts: [SidebarItem: Int] = [:]
+        for raindrop in raindrops {
+            if raindrop.isInTrash {
+                counts[.trash, default: 0] += 1
+                continue
+            }
+            counts[.all, default: 0] += 1
+            counts[.collection(raindrop.collectionID), default: 0] += 1
+            if raindrop.collectionID == SystemCollectionID.unsorted { counts[.unsorted, default: 0] += 1 }
+            if raindrop.important { counts[.important, default: 0] += 1 }
+            for tag in Set(raindrop.tags) { counts[.tag(tag), default: 0] += 1 }
+        }
+        self.counts = counts
+        tags = counts
+            .compactMap { item, count in
+                guard case .tag(let name) = item else { return nil }
+                return (name: name, count: count)
+            }
+            .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
     }
 
     func failIfSimulating() throws {

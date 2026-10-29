@@ -2,11 +2,14 @@ import SwiftUI
 
 struct SidebarView: View {
     @Environment(LibraryStore.self) private var store
-    @Binding var selection: SidebarItem?
-    @Binding var expandedCollections: Set<RaindropCollection.ID>
+    @Bindable var browser: BrowserModel
+
+    private var selection: Binding<SidebarItem?> {
+        Binding { browser.location } set: { browser.go(to: $0) }
+    }
 
     var body: some View {
-        List(selection: $selection) {
+        List(selection: selection) {
             Section {
                 row(.all, systemImage: "tray.full")
                 row(.unsorted, systemImage: "tray")
@@ -16,7 +19,7 @@ struct SidebarView: View {
 
             Section {
                 ForEach(store.collectionTree) { node in
-                    CollectionRow(node: node, expandedCollections: $expandedCollections)
+                    CollectionRow(node: node, expandedCollections: $browser.expandedCollections)
                 }
             } header: {
                 Text("Collections")
@@ -136,7 +139,7 @@ private struct SyncStatusView: View {
 
 #Preview {
     NavigationSplitView {
-        SidebarView(selection: .constant(.all), expandedCollections: .constant([]))
+        SidebarView(browser: BrowserModel())
     } detail: {
         Text("Detail")
     }
