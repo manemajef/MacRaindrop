@@ -32,6 +32,9 @@ struct RaindropGridView: View {
     @FocusState private var isFocused: Bool
 
     private static let minCardWidth: CGFloat = 180
+    /// How wide a card may stretch before the leftover space goes to the margin instead.
+    /// Less stretch means less text to re-lay out on each frame of a resize.
+    private static let maxCardWidth: CGFloat = 220
     private static let spacing: CGFloat = 8
     private static let padding: CGFloat = 16
     private static let coordinateSpace = "RaindropGrid"
@@ -131,15 +134,27 @@ struct RaindropGridView: View {
         }
     }
 
-    /// Each card is identified by its raindrop, so a change in column count moves cards
-    /// rather than rebuilding them.
+    /// Each card is identified by its raindrop, so a change in column count slides cards
+    /// to their new places rather than rebuilding them.
     private var cards: some View {
         LazyVGrid(
-            columns: Array(repeating: GridItem(.flexible(), spacing: Self.spacing, alignment: .top), count: columnCount),
+            columns: Array(
+                // No minimum: `columnCount` already keeps cards at least `minCardWidth` wide, and a
+                // minimum here becomes the grid's minimum width, which the window grows to fit.
+                // More width fits another column, which raises the minimum again, and so on.
+                repeating: GridItem(.flexible(maximum: Self.maxCardWidth), spacing: Self.spacing, alignment: .top),
+                count: columnCount
+            ),
+            alignment: .leading,
             spacing: Self.spacing
         ) {
             ForEach(raindrops) { raindrop in
                 card(raindrop)
+                    // On each card rather than the grid: only the move to a new column is
+                    // animated, and the grid itself keeps following the split view's resize.
+                    // A spring, so crossing two breakpoints in a row (5 → 4 → 3 columns)
+                    // redirects the cards mid-flight instead of starting over.
+                    .animation(.spring(duration: 0.3, bounce: 0.15), value: columnCount)
             }
         }
     }
@@ -150,6 +165,9 @@ struct RaindropGridView: View {
             isSelected: selection.contains(raindrop.id),
             isPending: store.pendingIDs.contains(raindrop.id)
         )
+            // Cover, text and footer move and resize as one with the card while it slides
+            // to a new column, rather than each animating on its own.
+            .geometryGroup()
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.coordinateSpace)) } action: {
                 cardFrames.frames[raindrop.id] = $0
             }
