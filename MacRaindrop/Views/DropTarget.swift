@@ -21,14 +21,9 @@ extension View {
 }
 
 private struct DropTarget: ViewModifier {
-    enum Target {
-        case item(SidebarItem)
-        case topLevel
-    }
-
     @Environment(LibraryStore.self) private var store
     @Environment(ActionPrompts.self) private var prompts
-    let target: Target
+    let target: LibraryDrop.Target
     @State private var isTargeted = false
 
     private var acceptedTypes: [UTType] {
@@ -58,11 +53,36 @@ private struct DropTarget: ViewModifier {
     private func drop(_ providers: [NSItemProvider]) async {
         let bookmarks = await load(RaindropLink.self, from: providers, type: .raindropBookmark).map(\.id)
         let collections = await load(CollectionDrag.self, from: providers, type: .raindropCollection).map(\.id)
-        if !bookmarks.isEmpty { await drop(bookmarks: bookmarks) }
-        for id in collections { await drop(collection: id) }
+        let action = LibraryDrop(target: target, store: store, prompts: prompts)
+        if !bookmarks.isEmpty { await action.bookmarks(bookmarks) }
+        for id in collections { await action.collection(id) }
     }
 
-    private func drop(bookmarks ids: [Raindrop.ID]) async {
+    /// Decodes the dragged items of `type`, skipping any that don't decode.
+    private func load<Item: Transferable & Sendable>(_ item: Item.Type, from providers: [NSItemProvider], type: UTType) async -> [Item] {
+        var items: [Item] = []
+        for provider in providers where provider.hasItemConformingToTypeIdentifier(type.identifier) {
+            let loaded: Item? = await withCheckedContinuation { continuation in
+                _ = provider.loadTransferable(type: Item.self) { continuation.resume(returning: try? $0.get()) }
+            }
+            if let loaded { items.append(loaded) }
+        }
+        return items
+    }
+}
+
+/// The same drop actions serve SwiftUI sidebar targets and the AppKit collection.
+struct LibraryDrop {
+    enum Target {
+        case item(SidebarItem)
+        case topLevel
+    }
+
+    let target: Target
+    let store: LibraryStore
+    let prompts: ActionPrompts
+
+    func bookmarks(_ ids: [Raindrop.ID]) async {
         guard case .item(let item) = target, store.canModify(ids) else { return }
         switch item {
         case .collection(let id):
@@ -80,7 +100,7 @@ private struct DropTarget: ViewModifier {
         }
     }
 
-    private func drop(collection id: RaindropCollection.ID) async {
+    func collection(_ id: RaindropCollection.ID) async {
         guard store.canWrite else { return }
         switch target {
         case .item(.collection(let parent)):
@@ -92,15 +112,4 @@ private struct DropTarget: ViewModifier {
         }
     }
 
-    /// Decodes the dragged items of `type`, skipping any that don't decode.
-    private func load<Item: Transferable & Sendable>(_ item: Item.Type, from providers: [NSItemProvider], type: UTType) async -> [Item] {
-        var items: [Item] = []
-        for provider in providers where provider.hasItemConformingToTypeIdentifier(type.identifier) {
-            let loaded: Item? = await withCheckedContinuation { continuation in
-                _ = provider.loadTransferable(type: Item.self) { continuation.resume(returning: try? $0.get()) }
-            }
-            if let loaded { items.append(loaded) }
-        }
-        return items
-    }
 }
