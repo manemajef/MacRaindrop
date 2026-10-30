@@ -34,7 +34,9 @@ struct QuickSearchRow: View {
             if isSelected {
                 // Concentric with the panel: its radius less the list's inset.
                 RoundedRectangle(cornerRadius: QuickSearchView.cornerRadius - QuickSearchView.listPadding)
-                    .fill(.primary.opacity(0.1))
+                    .fill(.primary.opacity(0.3))
+                    
+//                    .glassEffect()
             }
         }
         .contentShape(.rect)
@@ -100,4 +102,18 @@ private struct QuickSearchThumbnail: View {
             loaded = await ImagePipeline.shared.image(for: url)
         }
     }
+}
+
+#Preview {
+    let all = LibraryStore.preview.raindrops(in: .all)
+    let tagged = all.first { !$0.tags.isEmpty } ?? all[0]
+    // The first title word as the query, so its match shows in bold.
+    let query = tagged.title.split(separator: " ").first.map(String.init) ?? ""
+    VStack(spacing: 0) {
+        QuickSearchRow(raindrop: tagged, collection: "Dev / Swift", query: query, isSelected: true)
+        QuickSearchRow(raindrop: all[1], collection: nil, query: query, isSelected: false)
+        QuickSearchRow(raindrop: all[2], collection: "Memes", query: "", isSelected: false)
+    }
+    .padding(QuickSearchView.listPadding)
+    .frame(width: QuickSearchView.width)
 }

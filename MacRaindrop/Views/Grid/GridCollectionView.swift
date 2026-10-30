@@ -755,3 +755,13 @@ private final class BookmarkCollectionView: NSCollectionView {
         }
     }
 }
+
+#Preview("Section Header") {
+    VStack(spacing: 0) {
+        SectionHeader(title: "Folders", count: 3)
+            .frame(height: 44)
+        SectionHeader(title: "Bookmarks", count: 1_204)
+            .frame(height: 44)
+    }
+    .frame(width: 600)
+}

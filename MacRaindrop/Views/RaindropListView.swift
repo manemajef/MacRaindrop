@@ -120,3 +120,24 @@ private struct RaindropDragContainer: ViewModifier {
         .environment(store)
         .environment(ActionPrompts())
 }
+
+#Preview("Row States") {
+    let raindrop = LibraryStore.preview.raindrops(in: .all).first { !$0.tags.isEmpty && !$0.excerpt.isEmpty }!
+    // The same bookmark plain, then with each flag and state a row can show.
+    var bare = raindrop
+    bare.excerpt = ""
+    bare.tags = []
+    bare.cover = ""
+    var favorite = raindrop
+    favorite.important = true
+    var broken = raindrop
+    broken.broken = true
+    return List {
+        RaindropRow(raindrop: raindrop)
+        RaindropRow(raindrop: bare)
+        RaindropRow(raindrop: favorite)
+        RaindropRow(raindrop: broken)
+        RaindropRow(raindrop: raindrop, isPending: true)
+    }
+    .frame(width: 380, height: 560)
+}

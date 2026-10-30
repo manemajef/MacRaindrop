@@ -292,3 +292,15 @@ private extension View {
         keyboardShortcut(condition ? KeyboardShortcut(key, modifiers: modifiers) : nil)
     }
 }
+
+#Preview("Add Tags") {
+    let store = LibraryStore.preview
+    AddTagsSheet(request: TagRequest(ids: [store.raindrops[0].id]))
+        .environment(store)
+}
+
+#Preview("Add Tags to Several") {
+    let store = LibraryStore.preview
+    AddTagsSheet(request: TagRequest(ids: store.raindrops.prefix(3).map(\.id)))
+        .environment(store)
+}

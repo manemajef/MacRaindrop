@@ -162,9 +162,16 @@ private struct HighlightView: View {
     }
 }
 
-#Preview {
+#Preview("Info") {
     let store = LibraryStore.preview
     RaindropInfoView(raindrop: store.raindrops.first { !$0.highlights.isEmpty } ?? store.raindrops[0])
         .frame(width: 320, height: 600)
         .environment(store)
+}
+
+#Preview("No Web Address") {
+    var raindrop = LibraryStore.preview.raindrops[0]
+    raindrop.link = ""
+    return RaindropDetailView(raindrop: raindrop)
+        .frame(width: 600, height: 400)
 }

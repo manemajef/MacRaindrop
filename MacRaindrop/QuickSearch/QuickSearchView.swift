@@ -113,3 +113,22 @@ struct QuickSearchView: View {
         }
     }
 }
+
+#Preview("Recently Added") {
+    let session = AppSession()
+    session.useSampleData()
+    let model = QuickSearchModel(session: session)
+    model.willPresent()
+    return QuickSearchView(model: model)
+        .frame(height: QuickSearchView.maxHeight + 2 * QuickSearchController.shadowInset)
+}
+
+#Preview("No Results") {
+    let session = AppSession()
+    session.useSampleData()
+    let model = QuickSearchModel(session: session)
+    model.willPresent()
+    model.query = "zzzzqx"
+    return QuickSearchView(model: model)
+        .frame(height: QuickSearchView.maxHeight + 2 * QuickSearchController.shadowInset)
+}

@@ -29,10 +29,28 @@ struct RaindropGridView: View {
 }
 
 #Preview {
+    @Previewable @State var store = LibraryStore.preview
     @Previewable @State var selection: Set<Raindrop.ID> = []
-    let store = LibraryStore.preview
     RaindropGridView(raindrops: store.raindrops(in: .all), selection: $selection)
         .frame(width: 800, height: 600)
         .environment(store)
         .environment(ActionPrompts())
+}
+
+#Preview("With Folders") {
+    @Previewable @State var store = LibraryStore.preview
+    @Previewable @State var selection: Set<Raindrop.ID> = []
+    // The collection with subcollections holding the most bookmarks, as cards mode shows it:
+    // folders first, then bookmarks.
+    let parent = store.collections
+        .filter { !store.subcollections(of: $0.id).isEmpty }
+        .max { store.count(for: .collection($0.id)) < store.count(for: .collection($1.id)) }!
+    RaindropGridView(
+        raindrops: store.raindrops(in: .collection(parent.id)),
+        selection: $selection,
+        folders: store.subcollections(of: parent.id)
+    )
+    .frame(width: 800, height: 600)
+    .environment(store)
+    .environment(ActionPrompts())
 }

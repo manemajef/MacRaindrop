@@ -12,6 +12,18 @@ struct SidebarView: View {
     }
 
     var body: some View {
+        // The footer sits below the list rather than over it, so rows never scroll underneath
+        // and it shows the sidebar's own material.
+        VStack(spacing: 0) {
+            list
+            Divider()
+            SidebarFooterView()
+        }
+        .navigationTitle("Raindrop")
+        .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
+    }
+
+    private var list: some View {
         List(selection: selection) {
             Section {
                 row(.all, systemImage: "tray.full")
@@ -43,26 +55,6 @@ struct SidebarView: View {
                 }
             }
         }
-        .safeAreaInset(edge: .bottom) {
-            if showsSyncStatus {
-                SyncStatusView()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-                    .background(.bar)
-            }
-        }
-        .navigationTitle("Raindrop")
-        .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
-    }
-
-    /// Sync details are for debugging. Release builds only mention it when something is wrong.
-    private var showsSyncStatus: Bool {
-        #if DEBUG
-        true
-        #else
-        !store.isOnline || store.syncError != nil
-        #endif
     }
 
     private func row(_ item: SidebarItem, systemImage: String) -> some View {
@@ -113,39 +105,72 @@ private struct CollectionRow: View {
     }
 }
 
-private struct SyncStatusView: View {
-    @Environment(LibraryStore.self) private var store
-
+private struct SidebarFooterView: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Label(store.sourceName, systemImage: store.sourceName == "Sample Data" ? "shippingbox" : "cloud")
-            Group {
-                if !store.isOnline {
-                    Label("Offline. Changes are turned off.", systemImage: "wifi.slash")
-                        .foregroundStyle(.orange)
-                } else if let error = store.syncError {
-                    Label(error, systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                        .lineLimit(3)
-                } else if store.isSyncing {
-                    Text("Syncing…")
-                } else if let date = store.lastSyncedAt {
-                    Text("Synced \(Text(date, style: .relative)) ago")
-                }
+        HStack(spacing: 0) {
+            Menu {
+                Button("New Bookmark…", systemImage: "bookmark") {}
+                Button("New Collection…", systemImage: "folder.badge.plus") {}
+                Divider()
+                Button("Upload Image…", systemImage: "photo") {}
+                Button("Upload File…", systemImage: "doc") {}
+            } label: {
+                Image(systemName: "plus")
+                    .frame(width: 22, height: 22)
+                    .contentShape(.rect)
             }
+            .menuStyle(.button)
+            .buttonStyle(.borderless)
             .foregroundStyle(.tertiary)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Add")
+
+            Spacer()
+
+            SyncStatusIcon()
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
     }
 }
 
-#Preview {
-    NavigationSplitView {
-        SidebarView(browser: BrowserModel())
-    } detail: {
-        Text("Detail")
+/// One icon for the connection and sync state. Hover it for the details.
+private struct SyncStatusIcon: View {
+    @Environment(LibraryStore.self) private var store
+
+    var body: some View {
+        Image(systemName: systemImage)
+            .foregroundStyle(isProblem ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
+            .symbolEffect(.rotate, isActive: store.isSyncing && !isProblem)
+            .frame(width: 22, height: 22)
+            .contentShape(.rect)
+            .help(details)
+            .accessibilityLabel(details)
     }
-    .environment(LibraryStore.preview)
-    .environment(ActionPrompts())
+
+    private var isProblem: Bool { !store.isOnline || store.syncError != nil }
+
+    private var systemImage: String {
+        if !store.isOnline { return "wifi.slash" }
+        if store.syncError != nil { return "exclamationmark.icloud" }
+        if store.isSyncing { return "arrow.triangle.2.circlepath" }
+        return "checkmark.icloud"
+    }
+
+    private var details: String {
+        let status: String
+        if !store.isOnline {
+            status = "Offline. Changes are turned off."
+        } else if let error = store.syncError {
+            status = error
+        } else if store.isSyncing {
+            status = "Syncing…"
+        } else if let date = store.lastSyncedAt {
+            status = "Synced \(date.formatted(.relative(presentation: .named)))"
+        } else {
+            status = "Not synced yet"
+        }
+        return "\(store.sourceName): \(status)"
+    }
 }

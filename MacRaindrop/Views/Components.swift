@@ -54,12 +54,14 @@ struct TagList: View {
     var body: some View {
         HStack(spacing: 4) {
             ForEach(tags, id: \.self) { tag in
-                Text("#\(tag)")
+                Text("\(tag)")
                     .font(.caption)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(.tint.opacity(0.15), in: .capsule)
-                    .foregroundStyle(.tint)
+//                    .glassEffect()
+//                    .foregroundStyle(.tint)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -107,4 +109,28 @@ extension Raindrop.Highlight {
         default: .yellow
         }
     }
+}
+
+#Preview("Cover Placeholders") {
+    // No cover: each kind's symbol, as shown while a cover loads or when there is none.
+    HStack(spacing: 12) {
+        ForEach(Raindrop.Kind.allCases, id: \.self) { kind in
+            VStack {
+                CoverImage(url: nil, kind: kind)
+                    .frame(width: 96, height: 72)
+                    .clipShape(.rect(cornerRadius: 6))
+                Text(kind.label)
+                    .font(.caption)
+            }
+        }
+    }
+    .padding()
+}
+
+#Preview("Tag List") {
+    VStack(alignment: .leading, spacing: 12) {
+//        TagList(tags: ["swift"])
+        TagList(tags: ["design", "swiftui", "to-read", "macos"])
+    }
+    .padding()
 }

@@ -61,7 +61,6 @@ struct FolderTile: View {
             FolderTile(collection: folder, isSelected: folder.id == folders.first?.id)
         }
     }
-//    .frame(width: 220)
     .padding(GridMetrics.inset)
     .environment(store)
 }

@@ -234,4 +234,5 @@ struct ContentView: View {
         // and the columns come out squeezed or jumping.
         .frame(width: 1200, height: 760)
         .environment(LibraryStore.preview)
+        .environment(AppSession())
 }

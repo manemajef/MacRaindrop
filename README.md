@@ -3,8 +3,7 @@
 A native SwiftUI client for [Raindrop.io](https://raindrop.io) bookmarks on macOS.
 
 ![MacRaindrop in cards mode](docs/grid.png)
-%%![MacRaindrop in list mode](docs/list.png)
-%%
+![MacRaindrop in list mode](docs/list.png)
 
 
 ## Features
