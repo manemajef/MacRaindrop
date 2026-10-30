@@ -27,6 +27,8 @@ enum CollectionMode: String, CaseIterable, Identifiable {
 
 struct ContentView: View {
     @Environment(LibraryStore.self) private var store
+    @Environment(AppSession.self) private var session
+    @Environment(\.appearsActive) private var appearsActive
     @State private var browser = BrowserModel()
     @State private var prompts = ActionPrompts()
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
@@ -77,6 +79,18 @@ struct ContentView: View {
             .presentsPrompts(prompts)
             .syncsAutomatically()
             .environment(prompts)
+            // Until the app has a delegate, the first window sets up Quick Search.
+            .task { QuickSearchController.install(session: session) }
+            .onChange(of: session.revealRequest) { takeRevealRequest() }
+            .onChange(of: appearsActive) { takeRevealRequest() }
+    }
+
+    /// Shows the bookmark Quick Search asked for, if this is the window in front.
+    private func takeRevealRequest() {
+        guard appearsActive, let id = session.revealRequest else { return }
+        session.revealRequest = nil
+        guard let raindrop = store.raindrop(id: id) else { return }
+        browser.reveal(raindrop)
     }
 
     // MARK: Layout

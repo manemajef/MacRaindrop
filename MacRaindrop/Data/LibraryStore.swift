@@ -61,10 +61,14 @@ final class LibraryStore {
     }
 
     private(set) var phase: Phase = .idle
-    private(set) var collections: [RaindropCollection] = []
+    private(set) var collections: [RaindropCollection] = [] {
+        didSet { libraryChanged() }
+    }
     private(set) var raindrops: [Raindrop] = [] {
         didSet { rebuildDerivedState() }
     }
+    /// Goes up whenever a bookmark or collection changes, for views that keep their own copy.
+    private(set) var revision = 0
     /// How many raindrops each sidebar item shows. Counted once per change, not once per row.
     private(set) var counts: [SidebarItem: Int] = [:]
     /// Every tag in use, with how many raindrops carry it, most used first.
@@ -97,6 +101,10 @@ final class LibraryStore {
     /// Filtered and sorted lists already worked out, until `raindrops` changes. Views ask for
     /// the same list several times per update, and on every selection change.
     @ObservationIgnored var queryResults: [RaindropQuery: [Raindrop]] = [:]
+    /// The Quick Search index, built in the background on first use, until the library changes.
+    @ObservationIgnored var searchIndexTask: Task<SearchIndex, Never>?
+    /// That index once it's built, for answering a keystroke without waiting.
+    @ObservationIgnored var readySearchIndex: SearchIndex?
 
     var sourceName: String { service.name }
 
@@ -232,7 +240,14 @@ final class LibraryStore {
         }
     }
 
+    private func libraryChanged() {
+        revision += 1
+        searchIndexTask = nil
+        readySearchIndex = nil
+    }
+
     private func rebuildDerivedState() {
+        libraryChanged()
         indexByID = Dictionary(raindrops.enumerated().map { ($1.id, $0) }) { first, _ in first }
         queryResults = [:]
 

@@ -5,6 +5,8 @@ import Observation
 @Observable
 final class AppSession {
     private(set) var store: LibraryStore?
+    /// A bookmark Quick Search asked to show in the main window. The active window takes it.
+    var revealRequest: Raindrop.ID?
 
     /// Whether `RAINDROP_TEST` is set. It then wins over the saved token at every launch.
     let usesEnvironmentToken = ProcessInfo.processInfo.environment[RaindropServices.tokenEnvironmentKey]?.isEmpty == false

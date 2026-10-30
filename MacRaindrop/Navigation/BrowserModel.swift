@@ -42,6 +42,17 @@ final class BrowserModel {
         expandedCollections.formUnion(store.ancestors(of: id))
     }
 
+    /// Goes to the bookmark's collection and selects it, for Quick Search's ⌘↩.
+    func reveal(_ raindrop: Raindrop) {
+        let item: SidebarItem = switch raindrop.collectionID {
+        case _ where raindrop.isInTrash: .trash
+        case SystemCollectionID.unsorted: .unsorted
+        case let id: .collection(id)
+        }
+        go(to: item)
+        selection = [raindrop.id]
+    }
+
     func goForward() {
         guard let next = forwardStack.popLast() else { return }
         if let location { backStack.append(location) }
