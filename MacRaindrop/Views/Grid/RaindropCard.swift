@@ -6,19 +6,13 @@ struct RaindropCard: View {
     let isSelected: Bool
     /// A write to this raindrop is waiting for the server.
     var isPending = false
-
-    // MARK: Height
-    //
-    // There's no height setting as such: every card is the same height, and the grid measures
-    // one card at launch (`GridCollectionView`) and uses that for all of them. These decide it.
-
-    /// About 16:10 at a typical card width. Fixed rather than a ratio of the width: then a
-    /// card's height never changes as the grid resizes, and neither do the rows above the
-    /// viewport. With a ratio, every row above grew or shrank on each frame of a sidebar
-    /// animation, pushing the visible cards further the further down the grid was scrolled.
-    static let coverHeight: CGFloat = 125
-    /// Lines kept for the title and the excerpt, even when they're shorter or empty.
-    static let titleLines = 2
+    /// Takes the height of the longest title, excerpt and tags, whatever this one has. The grid
+    /// measures one card this way and gives every card that height.
+    var reservesSpace = false
+    static let coverHeight: CGFloat = 150
+    /// The lines the card is measured with. Shown, the title takes up to `titleLines` (or the
+    /// excerpt's lines too, when there's no excerpt), and the excerpt fills what's left.
+    static let titleLines = 3
     static let excerptLines = 3
 
     var body: some View {
@@ -29,40 +23,54 @@ struct RaindropCard: View {
                 // Only trims the filled image to its frame; the card's shape rounds the top corners.
                 .clipped()
 
+            // The title gets its lines first, the tags and footer keep theirs, and the excerpt
+            // shows as much as fits in between, so every card is full whatever its text.
             VStack(alignment: .leading, spacing: 5) {
-                // Every line is reserved even when empty, so all cards are the same height.
-                // The grid then needs no measuring pass to line rows up, and a card keeps
-                // its identity (and its loaded cover) when the column count changes.
                 Text(raindrop.title)
                     .font(.headline)
-                    .lineLimit(Self.titleLines, reservesSpace: true)
+                    .lineLimit(raindrop.excerpt.isEmpty && !reservesSpace ? Self.titleLines + Self.excerptLines : Self.titleLines,
+                               reservesSpace: reservesSpace)
+                    .layoutPriority(1)
 
-                // An empty string reserves nothing, so a space stands in for a missing excerpt.
-                Text(raindrop.excerpt.isEmpty ? " " : raindrop.excerpt)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(Self.excerptLines, reservesSpace: true)
+                if reservesSpace {
+                    // An empty string reserves nothing, so a space stands in for a missing excerpt.
+                    excerpt(raindrop.excerpt.isEmpty ? " " : raindrop.excerpt)
+                        .lineLimit(Self.excerptLines, reservesSpace: true)
+                } else if !raindrop.excerpt.isEmpty {
+                    excerpt(raindrop.excerpt)
+                        .frame(minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
+                }
 
-                // A tag's height, with or without tags.
-                Text(verbatim: "#")
-                    .font(.caption)
-                    .padding(.vertical, 2)
-                    .hidden()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .overlay(alignment: .leading) {
-                        TagList(tags: raindrop.tags)
-                            .fixedSize()
-                    }
-                    .clipped()
+                if reservesSpace || !raindrop.tags.isEmpty {
+                    // A tag's height, with or without tags.
+                    Text(verbatim: "#")
+//                        .font(.caption)
+                        .padding(.vertical, 2)
+                        .hidden()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .overlay(alignment: .leading) {
+                            TagList(tags: raindrop.tags)
+                                .fixedSize()
+                        }
+                        .clipped()
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                // Without an excerpt to fill it, the space goes here. With one, a spacer would
+                // take half of it.
+                if raindrop.excerpt.isEmpty || reservesSpace {
+                    Spacer(minLength: 0)
+                }
 
                 footer
                     .padding(.top, 2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 10)
             .padding(.top, 8)
             .padding(.bottom, 10)
         }
-        .frame(maxWidth: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(.background.secondary)
         .clipShape(.rect(cornerRadius: 12))
         .overlay {
@@ -82,6 +90,12 @@ struct RaindropCard: View {
         .contentShape(.rect(cornerRadius: 12))
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+
+    private func excerpt(_ text: String) -> some View {
+        Text(text)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
     }
 
     private var footer: some View {

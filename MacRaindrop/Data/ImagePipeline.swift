@@ -16,8 +16,8 @@ import UniformTypeIdentifiers
 nonisolated final class ImagePipeline: @unchecked Sendable {
     static let shared = ImagePipeline()
 
-    /// The longest side of a thumbnail, in pixels: a wide card on a Retina display.
-    static let maxPixelSize = 720
+    /// The longest side of a thumbnail, in pixels: the widest card (about 310 pt) on a Retina display.
+    static let maxPixelSize = 640
 
     private struct Load {
         let task: Task<CGImage?, Never>
@@ -29,12 +29,16 @@ nonisolated final class ImagePipeline: @unchecked Sendable {
     private let loads = Mutex<[URL: Load]>([:])
     /// Covers that didn't load this session (gone, not an image), so scrolling past doesn't retry them.
     private let failures = Mutex<Set<URL>>([])
+    /// Loads started ahead of a card appearing, so they can be called off if it never does.
+    private let prefetches = Mutex<[URL: Task<Void, Never>]>([:])
     private let session: URLSession
     private let directory: URL
 
     private init() {
-        // Decoded thumbnails are about 2 MB each. This keeps a few hundred.
-        memory.totalCostLimit = 400 * 1024 * 1024
+        // Decoded thumbnails are about 1 MB each, so this keeps around two screens of cards.
+        // Anything older comes back from the disk copy in a few milliseconds, never the network,
+        // and prefetching reads it before its card scrolls into view.
+        memory.totalCostLimit = 96 * 1024 * 1024
 
         // The originals are never needed again once downsampled, so they aren't cached.
         let configuration = URLSessionConfiguration.default
@@ -85,6 +89,26 @@ nonisolated final class ImagePipeline: @unchecked Sendable {
                     loads[url] = load
                 }
             }
+        }
+    }
+
+    /// Starts loading covers about to scroll into view, so they're in memory when they arrive.
+    func prefetch(_ urls: [URL]) {
+        for url in urls where cachedImage(for: url) == nil {
+            prefetches.withLock { prefetches in
+                guard prefetches[url] == nil else { return }
+                prefetches[url] = Task.detached(priority: .utility) {
+                    _ = await self.image(for: url)
+                    self.prefetches.withLock { _ = $0.removeValue(forKey: url) }
+                }
+            }
+        }
+    }
+
+    /// Calls off prefetches for covers that are no longer coming into view.
+    func cancelPrefetch(_ urls: [URL]) {
+        prefetches.withLock { prefetches in
+            for url in urls { prefetches.removeValue(forKey: url)?.cancel() }
         }
     }
 

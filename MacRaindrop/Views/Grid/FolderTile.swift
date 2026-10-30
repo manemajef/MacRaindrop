@@ -45,11 +45,6 @@ struct FolderTile: View {
                         .background(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear), in: .rect(cornerRadius: 4))
                         .foregroundStyle(isSelected ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
                 }
-
-//            Text("^[\(itemCount) item](inflect: true)")
-//                .font(.caption)
-//                .foregroundStyle(.secondary)
-//                .lineLimit(1)
         }
         .frame(maxWidth: .infinity)
         .contentShape(.rect)

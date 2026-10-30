@@ -93,7 +93,7 @@ private struct CollectionRow: View {
     }
 
     private var label: some View {
-        Label(node.collection.title, systemImage: node.children == nil ? "folder" : "folder.fill")
+        Label(node.collection.title, systemImage: node.children == nil ? "folder" : "folder")
             .badge(store.count(for: .collection(node.id)))
             .tag(SidebarItem.collection(node.id))
             .draggable(CollectionDrag(id: node.id))
