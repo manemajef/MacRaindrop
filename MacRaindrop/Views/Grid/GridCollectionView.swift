@@ -8,12 +8,12 @@ enum GridMetrics {
     /// Space between the grid and the edges of its column.
     static let inset: CGFloat = 16
     /// Gap between tiles side by side.
-    static let columnSpacing: CGFloat = 12
+    static let columnSpacing: CGFloat = 16
     /// Gap between rows.
-    static let rowSpacing: CGFloat = 12
+    static let rowSpacing: CGFloat = 16
     /// The narrowest a bookmark card gets. Below it, the grid drops a column and cards widen
     /// to fill the row, up to the width at which another column fits.
-    static let minCardWidth: CGFloat = 180
+    static let minCardWidth: CGFloat = 210
     /// Folder tiles, in their own rows above the bookmarks, don't stretch: what a row doesn't
     /// use is left at its end, so folders stay put while the grid resizes.
     static let folderWidth: CGFloat = 104
@@ -30,6 +30,46 @@ enum GridMetrics {
     }
 }
 
+/// What bookmark cards do with the space a row doesn't use. Except for `stretch`, cards keep
+/// `GridMetrics.minCardWidth`, and the names follow CSS's `justify-content`. Chosen from the
+/// Debug menu, to compare how each looks and animates while the grid resizes.
+enum CardSpacing: String, CaseIterable, Identifiable {
+    /// Cards widen to fill the row.
+    case stretch
+    /// Cards stay put from the left, and the space is left at the row's end, like the folders.
+    case leading
+    case spaceBetween
+    case spaceAround
+    case spaceEvenly
+
+    static let storageKey = "gridCardSpacing"
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .stretch: "Stretch"
+        case .leading: "Leading"
+        case .spaceBetween: "Space Between"
+        case .spaceAround: "Space Around"
+        case .spaceEvenly: "Space Evenly"
+        }
+    }
+
+    /// The space before the first column and between columns, for `columns` tiles `width` wide
+    /// across `available`, at least `spacing` apart.
+    func placement(columns: Int, width: CGFloat, spacing: CGFloat, available: CGFloat) -> (lead: CGFloat, gap: CGFloat) {
+        let n = CGFloat(columns)
+        let extra = max(0, available - n * width - (n - 1) * spacing)
+        switch self {
+        case .stretch, .leading: return (0, spacing)
+        case .spaceBetween: return columns > 1 ? (0, spacing + extra / (n - 1)) : (extra / 2, spacing)
+        case .spaceAround: return (extra / (2 * n), spacing + extra / n)
+        case .spaceEvenly: return (extra / (n + 1), spacing + extra / (n + 1))
+        }
+    }
+}
+
 /// The desktop collection control. Bookmark content, menus, and writes stay in SwiftUI.
 struct GridCollectionView: NSViewRepresentable {
     let raindrops: [Raindrop]
@@ -39,6 +79,7 @@ struct GridCollectionView: NSViewRepresentable {
     let prompts: ActionPrompts
     let openFolder: (RaindropCollection.ID) -> Void
     let open: (URL) -> Void
+    var cardSpacing: CardSpacing = .stretch
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -51,7 +92,7 @@ struct GridCollectionView: NSViewRepresentable {
         // content below it, and let it scroll up underneath, like a SwiftUI `ScrollView`.
         scrollView.automaticallyAdjustsContentInsets = true
         let collection = BookmarkCollectionView()
-        collection.collectionViewLayout = NSCollectionViewFlowLayout()
+        collection.collectionViewLayout = GridLayout()
         collection.isSelectable = true
         collection.allowsMultipleSelection = true
         collection.allowsEmptySelection = true
@@ -75,7 +116,7 @@ struct GridCollectionView: NSViewRepresentable {
         context.coordinator.update(self)
     }
 
-    final class Coordinator: NSObject, NSCollectionViewDelegateFlowLayout {
+    final class Coordinator: NSObject, NSCollectionViewDelegateFlowLayout, NSCollectionViewPrefetching {
         private var parent: GridCollectionView
         private weak var collection: BookmarkCollectionView?
         private var dataSource: NSCollectionViewDiffableDataSource<Int, Entry>!
@@ -88,6 +129,7 @@ struct GridCollectionView: NSViewRepresentable {
         fileprivate func attach(to collection: BookmarkCollectionView) {
             self.collection = collection
             collection.delegate = self
+            collection.prefetchDataSource = self
             collection.activate = { [weak self] in self?.activateSelection() }
             collection.deleteSelection = { [weak self] in self?.deleteSelection() }
             collection.copySelection = { [weak self] in self?.copySelection() }
@@ -179,6 +221,10 @@ struct GridCollectionView: NSViewRepresentable {
             let changed = content.isEmpty || self.parent.raindrops != parent.raindrops || self.parent.folders != parent.folders
             self.parent = parent
             guard let collection else { return }
+            if let layout = collection.collectionViewLayout as? GridLayout, layout.cardSpacing != parent.cardSpacing {
+                layout.cardSpacing = parent.cardSpacing
+                layout.invalidateLayout()
+            }
             if changed {
                 content = Dictionary(uniqueKeysWithValues:
                     parent.folders.map { (Entry.folder($0.id), TileContent.folder($0)) }
@@ -204,10 +250,12 @@ struct GridCollectionView: NSViewRepresentable {
         }
 
         /// Every tile of a kind is the same height, so one is measured, once, and used for all.
-        /// Changing what decides it (`RaindropCard`'s Height section) needs a relaunch.
+        /// A card is measured with every line it could have reserved. Changing what decides the
+        /// height (`RaindropCard`'s line limits and cover) needs a relaunch.
         private func measureTilesIfNeeded() {
             if bookmarkHeight == 0, let raindrop = parent.raindrops.first {
-                let view = NSHostingView(rootView: RaindropCard(raindrop: raindrop, isSelected: false).frame(width: 200))
+                let view = NSHostingView(rootView: RaindropCard(raindrop: raindrop, isSelected: false, reservesSpace: true)
+                    .frame(width: GridMetrics.minCardWidth))
                 bookmarkHeight = ceil(view.fittingSize.height)
             }
             if folderHeight == 0, let folder = parent.folders.first {
@@ -229,11 +277,12 @@ struct GridCollectionView: NSViewRepresentable {
             return size
         }
 
-        /// Tiles fill the row: as many columns as fit at the minimum width, then widened.
-        /// Cards fill the row: as many columns as fit at the minimum width, then widened.
-        /// Folders keep their width (see `insetForSectionAt`).
+        /// Cards fill the row: as many columns as fit at the minimum width, then widened, unless
+        /// they keep the minimum and `GridLayout` places them. Folders keep their width (see
+        /// `insetForSectionAt`).
         private func tileSize(section: Int, width: CGFloat) -> NSSize {
             guard section == 1 else { return NSSize(width: GridMetrics.folderWidth, height: folderHeight) }
+            guard parent.cardSpacing == .stretch else { return NSSize(width: GridMetrics.minCardWidth, height: bookmarkHeight) }
             let available = max(1, width - 2 * GridMetrics.inset)
             let spacing = GridMetrics.columnSpacing
             let columns = CGFloat(GridMetrics.columns(across: width, minimum: GridMetrics.minCardWidth))
@@ -294,6 +343,25 @@ struct GridCollectionView: NSViewRepresentable {
 
         func collectionView(_ collectionView: NSCollectionView, didDeselectItemsAt indexPaths: Set<IndexPath>) {
             publishSelection()
+        }
+
+        // MARK: Prefetching
+
+        /// The memory cache holds only a couple of screens of covers, so the ones about to scroll
+        /// into view are read ahead (from disk, usually) and show on their first frame.
+        func collectionView(_ collectionView: NSCollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
+            ImagePipeline.shared.prefetch(coverURLs(at: indexPaths))
+        }
+
+        func collectionView(_ collectionView: NSCollectionView, cancelPrefetchingForItemsAt indexPaths: [IndexPath]) {
+            ImagePipeline.shared.cancelPrefetch(coverURLs(at: indexPaths))
+        }
+
+        private func coverURLs(at paths: [IndexPath]) -> [URL] {
+            paths.compactMap { path in
+                guard let entry = dataSource.itemIdentifier(for: path), case .bookmark(let raindrop) = content[entry] else { return nil }
+                return raindrop.coverURL
+            }
         }
 
         private func publishSelection() {
@@ -570,6 +638,34 @@ private final class SectionHeaderView: NSView, NSCollectionViewElement {
             string: collapse == true ? "Show All" : "Show Less",
             attributes: [.foregroundColor: NSColor.controlAccentColor, .font: NSFont.systemFont(ofSize: NSFont.systemFontSize)]
         )
+    }
+}
+
+/// The flow layout, with fixed-width cards placed by column per `cardSpacing`. Left to itself, a
+/// flow layout justifies each row on its own, so a short last row spreads out of the columns above.
+private final class GridLayout: NSCollectionViewFlowLayout {
+    var cardSpacing: CardSpacing = .stretch
+
+    override func layoutAttributesForElements(in rect: NSRect) -> [NSCollectionViewLayoutAttributes] {
+        super.layoutAttributesForElements(in: rect).map(placed)
+    }
+
+    override func layoutAttributesForItem(at indexPath: IndexPath) -> NSCollectionViewLayoutAttributes? {
+        super.layoutAttributesForItem(at: indexPath).map(placed)
+    }
+
+    private func placed(_ attributes: NSCollectionViewLayoutAttributes) -> NSCollectionViewLayoutAttributes {
+        guard cardSpacing != .stretch, attributes.representedElementCategory == .item,
+              let path = attributes.indexPath, path.section == 1, let collectionView else { return attributes }
+        let width = collectionView.bounds.width
+        let columns = GridMetrics.columns(across: width, minimum: GridMetrics.minCardWidth)
+        let (lead, gap) = cardSpacing.placement(columns: columns, width: GridMetrics.minCardWidth,
+                                                spacing: GridMetrics.columnSpacing,
+                                                available: max(1, width - 2 * GridMetrics.inset))
+        // A copy: the flow layout caches the attributes it returns.
+        let copy = attributes.copy() as! NSCollectionViewLayoutAttributes
+        copy.frame.origin.x = GridMetrics.inset + lead + CGFloat(path.item % columns) * (GridMetrics.minCardWidth + gap)
+        return copy
     }
 }
 

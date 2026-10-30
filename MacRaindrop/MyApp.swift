@@ -32,6 +32,7 @@ import SwiftUI
                     } set: {
                         store.simulatesWriteFailures = $0
                     })
+                    CardSpacingPicker()
                 }
                 #endif
             }
@@ -43,3 +44,16 @@ import SwiftUI
         }
     }
 }
+
+#if DEBUG
+/// Switches how bookmark cards use a row's spare width, to compare them while resizing.
+private struct CardSpacingPicker: View {
+    @AppStorage(CardSpacing.storageKey) private var cardSpacing: CardSpacing = .stretch
+
+    var body: some View {
+        Picker("Card Spacing", selection: $cardSpacing) {
+            ForEach(CardSpacing.allCases) { Text($0.title).tag($0) }
+        }
+    }
+}
+#endif

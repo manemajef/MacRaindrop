@@ -5,6 +5,7 @@ struct RaindropGridView: View {
     @Environment(LibraryStore.self) private var store
     @Environment(ActionPrompts.self) private var prompts
     @Environment(\.openURL) private var openURL
+    @AppStorage(CardSpacing.storageKey) private var cardSpacing: CardSpacing = .stretch
     let raindrops: [Raindrop]
     @Binding var selection: Set<Raindrop.ID>
     var folders: [RaindropCollection] = []
@@ -18,7 +19,8 @@ struct RaindropGridView: View {
             store: store,
             prompts: prompts,
             openFolder: openFolder,
-            open: { openURL($0) }
+            open: { openURL($0) },
+            cardSpacing: cardSpacing
         )
         // Under the toolbar, so cards scroll up behind it. The scroll view's content insets
         // keep the first row clear of it.
