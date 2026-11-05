@@ -3,8 +3,6 @@
 A native SwiftUI client for [Raindrop.io](https://raindrop.io) bookmarks on macOS.
 
 ![MacRaindrop in cards mode](docs/grid.png)
-![MacRaindrop in list mode](docs/list.png)
-
 
 ## Features
 
@@ -15,6 +13,10 @@ A native SwiftUI client for [Raindrop.io](https://raindrop.io) bookmarks on macO
 - Local SwiftData cache, so the library appears instantly at launch
 - Incremental sync: nothing is fetched when the server reports no changes, only recent changes otherwise, and a full refetch when something was deleted
 
+### List View with in-App Browser
+![MacRaindrop in list mode](docs/list.png)
+### Quick Search Panel
+![](./docs/quick-search.png)
 ## Running
 
 Requires Xcode 27 and macOS 27.2 or later.
