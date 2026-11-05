@@ -12,15 +12,13 @@ struct SidebarView: View {
     }
 
     var body: some View {
-        // The footer sits below the list rather than over it, so rows never scroll underneath
-        // and it shows the sidebar's own material.
-        VStack(spacing: 0) {
-            list
-            Divider()
-            SidebarFooterView()
-        }
-        .navigationTitle("Raindrop")
-        .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
+        // The footer floats over the bottom of the list on glass, like Xcode's navigator. The hard
+        // edge cuts rows off cleanly behind it rather than fading them.
+        list
+            .safeAreaBar(edge: .bottom) { SidebarFooterView() }
+            .scrollEdgeEffectStyle(.hard, for: .bottom)
+            .navigationTitle("Raindrop")
+            .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
     }
 
     private var list: some View {
@@ -116,22 +114,22 @@ private struct SidebarFooterView: View {
                 Button("Upload File…", systemImage: "doc") {}
             } label: {
                 Image(systemName: "plus")
-                    .frame(width: 22, height: 22)
-                    .contentShape(.rect)
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28, height: 28)
+                    .contentShape(.circle)
             }
             .menuStyle(.button)
-            .buttonStyle(.borderless)
-            .foregroundStyle(.tertiary)
+            .buttonStyle(.plain)
             .menuIndicator(.hidden)
+            .glassEffect(.regular.interactive(), in: .circle)
             .fixedSize()
             .help("Add")
 
             Spacer()
-
-            SyncStatusIcon()
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        // Tucked into the sidebar's corner.
+        .padding(8)
     }
 }
 

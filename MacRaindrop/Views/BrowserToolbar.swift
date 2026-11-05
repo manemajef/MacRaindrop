@@ -71,14 +71,5 @@ struct EditAndInspectorToolbar: ToolbarContent {
             }
             .help(isInspectorPresented ? "Hide Inspector" : "Show Inspector")
         }
-//        ToolbarSpacer()
-//        ToolbarItem {
-//            Menu {
-//                Button("New Collection", action: {})
-//            } label: {
-//                Label("Add", systemImage: "plus")
-//            }
-//            .menuIndicator(.hidden)
-//        }
     }
 }
