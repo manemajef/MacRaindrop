@@ -21,12 +21,6 @@ struct QuickSearchRow: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 8)
-            if isSelected {
-                Text("↩ Open   ⌘↩ Show in Library")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .fixedSize()
-            }
         }
         .padding(.horizontal, 10)
         .frame(height: Self.height)
@@ -34,9 +28,7 @@ struct QuickSearchRow: View {
             if isSelected {
                 // Concentric with the panel: its radius less the list's inset.
                 RoundedRectangle(cornerRadius: QuickSearchView.cornerRadius - QuickSearchView.listPadding)
-                    .fill(.primary.opacity(0.3))
-                    
-//                    .glassEffect()
+                    .fill(.primary.opacity(0.4))
             }
         }
         .contentShape(.rect)

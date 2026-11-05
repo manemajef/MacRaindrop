@@ -42,7 +42,7 @@ struct QuickSearchView: View {
             content.frame(height: contentHeight, alignment: .top)
         }
         .clipShape(.rect(cornerRadius: Self.cornerRadius))
-        .glassEffect(.regular, in: .rect(cornerRadius: Self.cornerRadius))
+        .glassEffect(.regular.tint(Color(nsColor: .windowBackgroundColor).opacity(0.22)), in: .rect(cornerRadius: Self.cornerRadius))
         .shadow(color: .black.opacity(0.22), radius: 24, y: 10)
         .padding(QuickSearchController.shadowInset)
         .frame(maxHeight: .infinity, alignment: .top)
@@ -97,6 +97,7 @@ struct QuickSearchView: View {
                         )
                         .id(raindrop.id)
                         .onHover { if $0 { model.hover(raindrop.id) } }
+                        .onAppear { model.rowAppeared(raindrop.id) }
                         .onTapGesture { model.open(raindrop.id) }
                     }
                 }
@@ -114,6 +115,7 @@ struct QuickSearchView: View {
     }
 }
 
+#if DEBUG
 #Preview("Recently Added") {
     let session = AppSession()
     session.useSampleData()
@@ -132,3 +134,4 @@ struct QuickSearchView: View {
     return QuickSearchView(model: model)
         .frame(height: QuickSearchView.maxHeight + 2 * QuickSearchController.shadowInset)
 }
+#endif

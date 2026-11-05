@@ -5,7 +5,11 @@ import Observation
 @Observable
 final class QuickSearchModel {
     var query = "" {
-        didSet { if query != oldValue { search() } }
+        didSet {
+            guard query != oldValue else { return }
+            limit = Self.pageSize
+            search()
+        }
     }
     private(set) var results: [Raindrop] = []
     private(set) var selectedID: Raindrop.ID?
@@ -18,12 +22,18 @@ final class QuickSearchModel {
 
     @ObservationIgnored private let session: AppSession
     @ObservationIgnored private var searchTask: Task<Void, Never>?
+    /// How many results are shown. Scrolling near the end raises it a page at a time.
+    @ObservationIgnored private var limit = pageSize
+    /// Whether the index had more matches than `limit` allowed.
+    @ObservationIgnored private var hasMore = false
     @ObservationIgnored private var collectionPaths: [RaindropCollection.ID: String] = [:]
     /// Where the pointer was at the last hover that counted.
     @ObservationIgnored private var lastHoverLocation: NSPoint?
     /// Called once the panel should close. True when focus should go back to the app that had it,
     /// false when an action is about to bring another app (or this one) forward anyway.
     @ObservationIgnored var dismiss: (_ restoresFocus: Bool) -> Void = { _ in }
+
+    static let pageSize = 50
 
     init(session: AppSession) {
         self.session = session
@@ -46,6 +56,7 @@ final class QuickSearchModel {
         presentation += 1
         // The pointer may be resting where the panel appears; that isn't a hover.
         lastHoverLocation = NSEvent.mouseLocation
+        limit = Self.pageSize
         search()
         guard let store else { return }
         Task {
@@ -65,29 +76,45 @@ final class QuickSearchModel {
             return
         }
         if let index = store.readySearchIndex {
-            show(index.search(query), from: store)
+            show(index.search(query, limit: limit), from: store)
             return
         }
         isSearching = true
         searchTask = Task {
             let index = await store.searchIndex()
             guard !Task.isCancelled else { return }
-            show(index.search(query), from: store)
+            show(index.search(query, limit: limit), from: store)
         }
     }
 
-    private func show(_ matches: [SearchIndex.Match], from store: LibraryStore) {
+    private func show(_ matches: [SearchIndex.Match], from store: LibraryStore, keepingSelection: Bool = false) {
         let previous = selectedID
         collectionPaths = store.collectionPaths
         results = matches.compactMap { store.raindrop(id: $0.id) }
-        // Keep the selection on the same bookmark when results refresh after a sync.
-        selectedID = results.contains { $0.id == previous } && !query.isEmpty ? previous : results.first?.id
+        hasMore = matches.count == limit
+        // Keep the selection on the same bookmark when results refresh after a sync, or grow by a page.
+        let keeps = !query.isEmpty || keepingSelection
+        selectedID = keeps && results.contains { $0.id == previous } ? previous : results.first?.id
         isSearching = false
+    }
+
+    /// Adds the next page of results, if there are more. A rescan takes a few milliseconds,
+    /// so this reruns the query with a higher limit rather than keeping a cursor.
+    func loadMore() {
+        guard hasMore, let store, let index = store.readySearchIndex else { return }
+        limit += Self.pageSize
+        show(index.search(query, limit: limit), from: store, keepingSelection: true)
+    }
+
+    /// A row scrolled into view. Near the end of the list, the next page loads.
+    func rowAppeared(_ id: Raindrop.ID) {
+        if results.suffix(10).contains(where: { $0.id == id }) { loadMore() }
     }
 
     func moveSelection(by offset: Int) {
         guard !results.isEmpty else { return }
         let current = results.firstIndex { $0.id == selectedID } ?? 0
+        if current + offset >= results.count { loadMore() }
         let next = min(max(current + offset, 0), results.count - 1)
         selectedID = results[next].id
         keyboardMoves += 1
@@ -122,7 +149,7 @@ final class QuickSearchModel {
         guard let raindrop = selectedRaindrop else { return }
         dismiss(false)
         session.revealRequest = raindrop.id
-        NSApp.activate()
+        AppDelegate.showMainWindow()
     }
 
     /// Escape: clears the query first, then closes.
