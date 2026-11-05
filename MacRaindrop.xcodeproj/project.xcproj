@@ -21,6 +21,7 @@
   ],
   "files": [
     { "kind": "folder", "path": "MacRaindrop", "target-membership": [ "MacRaindrop" ] },
+    { "path": "MacRaindropIcon.icon", "target-membership": [ "MacRaindrop/resources" ] },
     {
       "kind": "group",
       "name": "Products",
@@ -48,6 +49,8 @@
         },
       ],
       "build-settings": {
+        "ASSETCATALOG_COMPILER_APPICON_NAME": "MacRaindropIcon",
+        "ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS": "YES",
         "CODE_SIGN_STYLE": "Automatic",
         "CURRENT_PROJECT_VERSION": "1",
         "ENABLE_APP_SANDBOX": "YES",
