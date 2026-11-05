@@ -16,7 +16,7 @@ struct SidebarView: View {
         // edge cuts rows off cleanly behind it rather than fading them.
         list
             .safeAreaBar(edge: .bottom) { SidebarFooterView() }
-            .scrollEdgeEffectStyle(.hard, for: .bottom)
+            .scrollEdgeEffectStyle(.soft, for: .bottom)
             .navigationTitle("Raindrop")
             .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
     }
@@ -114,9 +114,9 @@ private struct SidebarFooterView: View {
                 Button("Upload File…", systemImage: "doc") {}
             } label: {
                 Image(systemName: "plus")
-                    .font(.system(size: 16, weight: .regular))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 28, height: 28)
+                    .font(.system(size: 14, weight: .regular))
+//                    .foregroundStyle(.secondary)
+                    .frame(width: 26, height: 26)
                     .contentShape(.circle)
             }
             .menuStyle(.button)

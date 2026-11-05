@@ -1,6 +1,6 @@
 import SwiftUI
 
-@main struct MyApp: App {
+@main struct MacRaindropApp: App {
     @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
     @State private var session = AppSession()
 
