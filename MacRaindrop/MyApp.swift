@@ -1,6 +1,7 @@
 import SwiftUI
 
 @main struct MyApp: App {
+    @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
     @State private var session = AppSession()
 
     var body: some Scene {

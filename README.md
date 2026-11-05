@@ -29,6 +29,8 @@ To build Release and replace the copy in `/Applications` (relaunching it if it w
 scripts/install.sh
 ```
 
+Closing the last window keeps the app running in the background without a Dock icon, so the Quick Search hotkey (⇧⌘L) still works. Open the app again (or ⌘-Return in Quick Search) to bring a window back; quit with ⌘Q while a window is open.
+
 ## Known issue
 
 Running under Xcode's debugger can crash at launch with *"The window has been marked as needing another Update Constraints in Window pass…"*. The cause is a `NavigationSplitView` nested inside another one, which the layout uses to hide the list together with the sidebar. A minimal app containing only that nesting crashes the same way on the current macOS beta. Launching the built app normally works.
