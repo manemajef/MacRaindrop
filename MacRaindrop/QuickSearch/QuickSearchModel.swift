@@ -148,6 +148,8 @@ final class QuickSearchModel {
     func revealSelected() {
         guard let raindrop = selectedRaindrop else { return }
         dismiss(false)
+        
+        UserDefaults.standard.set(true, forKey: "showInspector")
         session.revealRequest = raindrop.id
         AppDelegate.showMainWindow()
     }

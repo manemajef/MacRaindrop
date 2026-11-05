@@ -20,6 +20,7 @@ import SwiftUI
         }
         .defaultSize(width: 1280, height: 800)
         .commands {
+            AppCommands()
             if let store = session.store {
                 GoCommands(store: store)
                 BookmarkCommands(store: store)
