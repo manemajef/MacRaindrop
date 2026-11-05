@@ -13,7 +13,7 @@ struct RaindropCard: View {
     /// The lines the card is measured with. Shown, the title takes up to `titleLines` (or the
     /// excerpt's lines too, when there's no excerpt), and the excerpt fills what's left.
     static let titleLines = 3
-    static let excerptLines = 3
+    static let excerptLines = 1
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {

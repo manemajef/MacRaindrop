@@ -13,10 +13,7 @@ enum GridMetrics {
     static let rowSpacing: CGFloat = 16
     /// The narrowest a bookmark card gets. Below it, the grid drops a column and cards widen
     /// to fill the row, up to the width at which another column fits.
-    static let minCardWidth: CGFloat = 210
-    /// Folder tiles, in their own rows above the bookmarks, don't stretch: what a row doesn't
-    /// use is left at its end, so folders stay put while the grid resizes.
-    static let folderWidth: CGFloat = 104
+    static let minCardWidth: CGFloat = 180
     /// The narrowest the grid gets, between the sidebar and the inspector: about a third of a
     /// 14-inch MacBook Pro's 1512-point screen, room for two cards.
     static let minWidth: CGFloat = 440
@@ -123,6 +120,8 @@ struct GridCollectionView: NSViewRepresentable {
         private var content: [Entry: TileContent] = [:]
         private var bookmarkHeight: CGFloat = 0
         private var folderHeight: CGFloat = 0
+        /// Each folder chip is as wide as its name, measured once per name.
+        private var folderWidths: [String: CGFloat] = [:]
 
         init(_ parent: GridCollectionView) { self.parent = parent }
 
@@ -133,6 +132,7 @@ struct GridCollectionView: NSViewRepresentable {
             collection.activate = { [weak self] in self?.activateSelection() }
             collection.deleteSelection = { [weak self] in self?.deleteSelection() }
             collection.copySelection = { [weak self] in self?.copySelection() }
+            collection.dragEnded = { [weak self] in self?.dragEnded() }
             collection.selectBookmarks = { [weak self] in self?.selectAllBookmarks() }
             collection.selectionChanged = { [weak self] in self?.publishSelection() }
             collection.contextMenu = { [weak self] path in self?.menu(at: path) }
@@ -170,7 +170,31 @@ struct GridCollectionView: NSViewRepresentable {
 
         /// Whether the folder at `index` is past the first row of a collapsed section.
         private func isHiddenFolder(_ index: Int, width: CGFloat) -> Bool {
-            !showsAllFolders && index >= GridMetrics.columns(across: width, minimum: GridMetrics.folderWidth)
+            !showsAllFolders && index >= foldersInFirstRow(width: width)
+        }
+
+        /// How many folder chips fit on the first row, packed from the left as the layout packs them.
+        private func foldersInFirstRow(width: CGFloat) -> Int {
+            let available = max(1, width - 2 * GridMetrics.inset)
+            var used: CGFloat = 0
+            for (index, folder) in parent.folders.enumerated() {
+                let next = (index == 0 ? 0 : used + GridMetrics.columnSpacing) + folderWidth(folder, width: width)
+                if next > available { return max(1, index) }
+                used = next
+            }
+            return parent.folders.count
+        }
+
+        /// A chip's width: its name's, up to `FolderTile.maxWidth` and never wider than the grid.
+        private func folderWidth(_ folder: RaindropCollection, width: CGFloat) -> CGFloat {
+            let natural = folderWidths[folder.title] ?? {
+                let view = NSHostingView(rootView: FolderTile(collection: folder, isSelected: false)
+                    .fixedSize().environment(parent.store))
+                let measured = min(FolderTile.maxWidth, ceil(view.fittingSize.width))
+                folderWidths[folder.title] = measured
+                return measured
+            }()
+            return min(natural, max(1, width - 2 * GridMetrics.inset))
         }
 
         @objc fileprivate func toggleFolders(_ sender: Any?) {
@@ -212,7 +236,7 @@ struct GridCollectionView: NSViewRepresentable {
             }
             // The button only when there's more than a row to show or hide.
             let width = collection?.bounds.width ?? 0
-            let overflows = parent.folders.count > GridMetrics.columns(across: width, minimum: GridMetrics.folderWidth)
+            let overflows = parent.folders.count > foldersInFirstRow(width: width)
             header.show(SectionHeader(title: "Collections", count: parent.folders.count),
                         collapse: overflows ? !showsAllFolders : nil)
         }
@@ -260,7 +284,7 @@ struct GridCollectionView: NSViewRepresentable {
             }
             if folderHeight == 0, let folder = parent.folders.first {
                 let view = NSHostingView(rootView: FolderTile(collection: folder, isSelected: false)
-                    .frame(width: GridMetrics.folderWidth).environment(parent.store))
+                    .fixedSize().environment(parent.store))
                 folderHeight = ceil(view.fittingSize.height)
             }
         }
@@ -268,20 +292,17 @@ struct GridCollectionView: NSViewRepresentable {
         func collectionView(_ collectionView: NSCollectionView, layout collectionViewLayout: NSCollectionViewLayout,
                             sizeForItemAt indexPath: IndexPath) -> NSSize {
             let width = collectionView.bounds.width
-            var size = tileSize(section: indexPath.section, width: width)
-            if indexPath.section == 0 {
-                // Folder rows carry their own spacing (see `minimumLineSpacingForSectionAt`), so
-                // a hidden folder's zero-height row takes no space at all.
-                size.height = isHiddenFolder(indexPath.item, width: width) ? 0 : size.height + GridMetrics.rowSpacing
-            }
-            return size
+            guard indexPath.section == 0 else { return bookmarkSize(width: width) }
+            // Folder rows carry their own spacing (see `minimumLineSpacingForSectionAt`), so
+            // a hidden folder's zero-height row takes no space at all.
+            let folder = parent.folders[indexPath.item]
+            let height = isHiddenFolder(indexPath.item, width: width) ? 0 : folderHeight + GridMetrics.rowSpacing
+            return NSSize(width: folderWidth(folder, width: width), height: height)
         }
 
         /// Cards fill the row: as many columns as fit at the minimum width, then widened, unless
-        /// they keep the minimum and `GridLayout` places them. Folders keep their width (see
-        /// `insetForSectionAt`).
-        private func tileSize(section: Int, width: CGFloat) -> NSSize {
-            guard section == 1 else { return NSSize(width: GridMetrics.folderWidth, height: folderHeight) }
+        /// they keep the minimum and `GridLayout` places them.
+        private func bookmarkSize(width: CGFloat) -> NSSize {
             guard parent.cardSpacing == .stretch else { return NSSize(width: GridMetrics.minCardWidth, height: bookmarkHeight) }
             let available = max(1, width - 2 * GridMetrics.inset)
             let spacing = GridMetrics.columnSpacing
@@ -296,17 +317,7 @@ struct GridCollectionView: NSViewRepresentable {
             // Under a heading, the heading is the space above the section. Folder rows already
             // end in a row's spacing, so their section needs that much less below.
             let bottom = section == 0 ? max(0, inset - GridMetrics.rowSpacing) : inset
-            return NSEdgeInsets(top: showsHeaders ? 4 : inset, left: inset, bottom: bottom,
-                                right: section == 0 ? folderRightInset(width: collectionView.bounds.width) : inset)
-        }
-
-        /// Folders keep their width and their place from the left, like icons on a desktop. The
-        /// space a row doesn't use goes to this margin; otherwise the layout spreads it between
-        /// the tiles, and every folder drifts on each frame of a sidebar or inspector animation.
-        private func folderRightInset(width: CGFloat) -> CGFloat {
-            let columns = CGFloat(GridMetrics.columns(across: width, minimum: GridMetrics.folderWidth))
-            let used = columns * GridMetrics.folderWidth + (columns - 1) * GridMetrics.columnSpacing
-            return max(GridMetrics.inset, width - GridMetrics.inset - used)
+            return NSEdgeInsets(top: showsHeaders ? 4 : inset, left: inset, bottom: bottom, right: inset)
         }
 
         func collectionView(_ collectionView: NSCollectionView, layout collectionViewLayout: NSCollectionViewLayout,
@@ -459,6 +470,49 @@ struct GridCollectionView: NSViewRepresentable {
         func collectionView(_ collectionView: NSCollectionView, validateDrop draggingInfo: any NSDraggingInfo,
                             proposedIndexPath proposedDropIndexPath: AutoreleasingUnsafeMutablePointer<NSIndexPath>,
                             dropOperation proposedDropOperation: UnsafeMutablePointer<NSCollectionView.DropOperation>) -> NSDragOperation {
+            let operation = folderDropOperation(collectionView, draggingInfo, proposedIndexPath: proposedDropIndexPath,
+                                                dropOperation: proposedDropOperation)
+            // Over a folder that takes the drop, the dragged cards shrink to half, as they do over
+            // a sidebar row (whose outline view does this itself), and grow back off it.
+            shrinkDrag(!operation.isEmpty, draggingInfo)
+            return operation
+        }
+
+        /// Whether the dragged items are at half size, over a folder.
+        private var isDragShrunk = false
+        private static let dragShrinkScale: CGFloat = 0.5
+
+        /// Scales every dragged item about the pointer, so the part under it stays under it.
+        private func shrinkDrag(_ shrink: Bool, _ draggingInfo: any NSDraggingInfo) {
+            guard shrink != isDragShrunk, let collection else { return }
+            isDragShrunk = shrink
+            let scale = shrink ? Self.dragShrinkScale : 1 / Self.dragShrinkScale
+            let pointer = collection.convert(draggingInfo.draggingLocation, from: nil)
+            draggingInfo.enumerateDraggingItems(options: [], for: collection, classes: [NSPasteboardItem.self],
+                                                searchOptions: [:]) { item, _, _ in
+                let frame = item.draggingFrame
+                let components = item.imageComponents ?? []
+                item.draggingFrame = NSRect(x: pointer.x - (pointer.x - frame.minX) * scale,
+                                            y: pointer.y - (pointer.y - frame.minY) * scale,
+                                            width: frame.width * scale, height: frame.height * scale)
+                item.imageComponentsProvider = {
+                    components.map { component in
+                        let scaled = NSDraggingImageComponent(key: component.key)
+                        scaled.contents = component.contents
+                        scaled.frame = NSRect(x: component.frame.minX * scale, y: component.frame.minY * scale,
+                                              width: component.frame.width * scale, height: component.frame.height * scale)
+                        return scaled
+                    }
+                }
+            }
+        }
+
+        /// Leaving the grid, AppKit puts back the images the drag started with.
+        fileprivate func dragEnded() { isDragShrunk = false }
+
+        private func folderDropOperation(_ collectionView: NSCollectionView, _ draggingInfo: any NSDraggingInfo,
+                                         proposedIndexPath proposedDropIndexPath: AutoreleasingUnsafeMutablePointer<NSIndexPath>,
+                                         dropOperation proposedDropOperation: UnsafeMutablePointer<NSCollectionView.DropOperation>) -> NSDragOperation {
             guard let path = collectionView.indexPathForItem(at: collectionView.convert(draggingInfo.draggingLocation, from: nil)),
                   case .folder(let id) = dataSource.itemIdentifier(for: path), parent.store.canWrite,
                   !(draggingInfo.draggingPasteboard.pasteboardItems ?? []).contains(where: {
@@ -519,6 +573,7 @@ private struct CollectionTile: View {
     @Environment(LibraryStore.self) private var store
     let content: TileContent
     let isSelected: Bool
+    var isDropTarget = false
     let actions: TileActions
 
     var body: some View {
@@ -527,7 +582,7 @@ private struct CollectionTile: View {
             case .bookmark(let raindrop):
                 RaindropCard(raindrop: raindrop, isSelected: isSelected, isPending: store.pendingIDs.contains(raindrop.id))
             case .folder(let folder):
-                FolderTile(collection: folder, isSelected: isSelected)
+                FolderTile(collection: folder, isSelected: isSelected, isDropTarget: isDropTarget)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -546,6 +601,11 @@ private final class CollectionItem: NSCollectionViewItem {
 
     override var isSelected: Bool {
         didSet { if oldValue != isSelected { render() } }
+    }
+
+    /// The collection view sets this while a drag hovers a folder it will drop into.
+    override var highlightState: NSCollectionViewItem.HighlightState {
+        didSet { if oldValue != highlightState { render() } }
     }
 
     override func loadView() {
@@ -571,7 +631,8 @@ private final class CollectionItem: NSCollectionViewItem {
 
     private func render() {
         guard let content, let store, let actions else { return }
-        hostingView.rootView = AnyView(CollectionTile(content: content, isSelected: isSelected, actions: actions)
+        hostingView.rootView = AnyView(CollectionTile(content: content, isSelected: isSelected,
+                                                      isDropTarget: highlightState == .asDropTarget, actions: actions)
             .environment(store).id(content.id))
     }
 
@@ -641,10 +702,29 @@ private final class SectionHeaderView: NSView, NSCollectionViewElement {
     }
 }
 
-/// The flow layout, with fixed-width cards placed by column per `cardSpacing`. Left to itself, a
-/// flow layout justifies each row on its own, so a short last row spreads out of the columns above.
+/// The flow layout, with fixed-width cards placed by column per `cardSpacing`, and folder chips
+/// packed from the left. Left to itself, a flow layout justifies each row on its own, so a short
+/// last row spreads out of the columns above, and chips drift on every frame of a resize.
 private final class GridLayout: NSCollectionViewFlowLayout {
     var cardSpacing: CardSpacing = .stretch
+    /// Each folder chip's x, by item: one after another along the rows the flow layout chose.
+    private var folderX: [Int: CGFloat] = [:]
+
+    override func prepare() {
+        super.prepare()
+        folderX = [:]
+        guard let collectionView, collectionView.numberOfSections > 0 else { return }
+        var x = GridMetrics.inset
+        var previousMinX = CGFloat.infinity
+        for item in 0..<collectionView.numberOfItems(inSection: 0) {
+            guard let frame = super.layoutAttributesForItem(at: IndexPath(item: item, section: 0))?.frame else { continue }
+            // A row starts where the flow layout went back to the left.
+            if frame.minX <= previousMinX { x = GridMetrics.inset }
+            previousMinX = frame.minX
+            folderX[item] = x
+            x += frame.width + GridMetrics.columnSpacing
+        }
+    }
 
     override func layoutAttributesForElements(in rect: NSRect) -> [NSCollectionViewLayoutAttributes] {
         super.layoutAttributesForElements(in: rect).map(placed)
@@ -655,8 +735,15 @@ private final class GridLayout: NSCollectionViewFlowLayout {
     }
 
     private func placed(_ attributes: NSCollectionViewLayoutAttributes) -> NSCollectionViewLayoutAttributes {
-        guard cardSpacing != .stretch, attributes.representedElementCategory == .item,
-              let path = attributes.indexPath, path.section == 1, let collectionView else { return attributes }
+        guard attributes.representedElementCategory == .item, let path = attributes.indexPath else { return attributes }
+        if path.section == 0 {
+            guard let x = folderX[path.item] else { return attributes }
+            // A copy: the flow layout caches the attributes it returns.
+            let copy = attributes.copy() as! NSCollectionViewLayoutAttributes
+            copy.frame.origin.x = x
+            return copy
+        }
+        guard cardSpacing != .stretch, let collectionView else { return attributes }
         let width = collectionView.bounds.width
         let columns = GridMetrics.columns(across: width, minimum: GridMetrics.minCardWidth)
         let (lead, gap) = cardSpacing.placement(columns: columns, width: GridMetrics.minCardWidth,
@@ -684,7 +771,19 @@ private final class BookmarkCollectionView: NSCollectionView {
     /// After the layout changes for a new width.
     var reflowed: (() -> Void)?
     var preferredAnchor: IndexPath?
+    /// A drag left the grid, or dropped.
+    var dragEnded: (() -> Void)?
     private var isReflowing = false
+
+    override func draggingExited(_ sender: (any NSDraggingInfo)?) {
+        super.draggingExited(sender)
+        dragEnded?()
+    }
+
+    override func concludeDragOperation(_ sender: (any NSDraggingInfo)?) {
+        super.concludeDragOperation(sender)
+        dragEnded?()
+    }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
@@ -765,3 +864,4 @@ private final class BookmarkCollectionView: NSCollectionView {
     }
     .frame(width: 600)
 }
+
