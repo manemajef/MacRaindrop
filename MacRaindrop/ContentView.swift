@@ -1,35 +1,11 @@
 import SwiftUI
 
-/// How a collection's bookmarks are shown.
-enum CollectionMode: String, CaseIterable, Identifiable {
-    /// Sidebar and a grid of cards; double-clicking a card opens it in the browser.
-    case cards
-    
-    /// Sidebar, bookmark list, and the selected page in a web view.
-    case list
-
-    var id: Self { self }
-
-    var label: String {
-        switch self {
-        case .cards: "Cards"
-        case .list: "List"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .cards: "square.grid.2x2"
-        case .list: "list.bullet"
-        }
-    }
-}
-
+/// A library window: sidebar, bookmarks as cards or a list, and the inspector.
 struct ContentView: View {
     @Environment(LibraryStore.self) private var store
     @Environment(AppSession.self) private var session
     @Environment(\.appearsActive) private var appearsActive
-    @State private var browser = BrowserModel()
+    @State private var navigation = NavigationModel()
     @State private var prompts = ActionPrompts()
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @AppStorage("collectionMode") private var mode: CollectionMode = .cards
@@ -37,45 +13,45 @@ struct ContentView: View {
     @AppStorage("showInspector") private var showInspector = true
 
     private var raindrops: [Raindrop] {
-        guard let location = browser.location else { return [] }
-        return store.raindrops(in: location, matching: browser.searchText, sortedBy: sort)
+        guard let location = navigation.location else { return [] }
+        return store.raindrops(in: location, matching: navigation.searchText, sortedBy: sort)
     }
 
-    /// Subcollections of the current collection, shown as folder tiles in cards mode.
+    /// Subcollections of the current collection, shown as collection chips in cards mode.
     /// Hidden while searching, since the search covers bookmarks only.
-    private var folders: [RaindropCollection] {
-        guard mode == .cards, browser.searchText.isEmpty, case .collection(let id) = browser.location else { return [] }
+    private var subcollections: [RaindropCollection] {
+        guard mode == .cards, navigation.searchText.isEmpty, case .collection(let id) = navigation.location else { return [] }
         return store.subcollections(of: id)
     }
 
     private var selectedRaindrops: [Raindrop] {
-        browser.selection.compactMap(store.raindrop(id:))
+        navigation.selection.compactMap(store.raindrop(id:))
     }
 
     /// The selected raindrop, when exactly one is selected.
     private var selectedRaindrop: Raindrop? {
-        browser.selection.count == 1 ? browser.selection.first.flatMap(store.raindrop(id:)) : nil
+        navigation.selection.count == 1 ? navigation.selection.first.flatMap(store.raindrop(id:)) : nil
     }
 
     var body: some View {
-        @Bindable var browser = browser
+        @Bindable var navigation = navigation
         splitView
             .navigationTitle(title)
             .navigationSubtitle(store.phase == .loaded ? "\(raindrops.count) bookmarks" : "")
-            .searchable(text: $browser.searchText, prompt: "Search \(browser.location.map(store.title(for:)) ?? "Bookmarks")")
+            .searchable(text: $navigation.searchText, prompt: "Search \(navigation.location.map(store.title(for:)) ?? "Bookmarks")")
             .inspector(isPresented: $showInspector) {
                 inspector
                     .inspectorColumnWidth(min: 260, ideal: 300, max: 400)
             }
             // Bookmarks that leave the list (trashed, moved elsewhere) leave the selection too.
             .onChange(of: raindrops.map(\.id)) { _, visible in
-                browser.selection.formIntersection(visible)
+                navigation.selection.formIntersection(visible)
             }
-            .onChange(of: browser.location, initial: true) {
-                browser.revealLocation(in: store)
+            .onChange(of: navigation.location, initial: true) {
+                navigation.revealLocation(in: store)
             }
             .focusedSceneValue(\.bookmarkContext, BookmarkContext(raindrops: selectedRaindrops, prompts: prompts))
-            .focusedSceneValue(\.browser, browser)
+            .focusedSceneValue(\.navigation, navigation)
             .presentsPrompts(prompts)
             .syncsAutomatically()
             .environment(prompts)
@@ -90,7 +66,7 @@ struct ContentView: View {
         guard appearsActive, let id = session.revealRequest else { return }
         session.revealRequest = nil
         guard let raindrop = store.raindrop(id: id) else { return }
-        browser.reveal(raindrop)
+        navigation.reveal(raindrop)
     }
 
     // MARK: Layout
@@ -129,32 +105,28 @@ struct ContentView: View {
         }
     }
 
-    /// The same in both modes: ‹ › | view, sort | edit, inspector | search.
-    @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        HistoryToolbar(browser: browser)
-        ViewOptionsToolbar(mode: $mode, sort: $sort)
-        ToolbarSpacer(.fixed)
-        EditAndInspectorToolbar(selection: selectedRaindrops, isInspectorPresented: $showInspector)
+        ContentToolbar(navigation: navigation, mode: $mode, sort: $sort,
+                       selection: selectedRaindrops, isInspectorPresented: $showInspector)
     }
 
     /// Gets the model itself rather than bindings made here: a binding built from closures
     /// never compares equal, so the sidebar would redraw (and recount) on every click.
     private var sidebar: some View {
-        SidebarView(browser: browser)
+        SidebarView(navigation: navigation)
     }
 
     private var title: String {
         if mode == .list, columnVisibility == .detailOnly, let selectedRaindrop {
             selectedRaindrop.title
         } else {
-            browser.location.map(store.title(for:)) ?? "Raindrop"
+            navigation.location.map(store.title(for:)) ?? "Raindrop"
         }
     }
 
     @ViewBuilder
     private var collection: some View {
-        @Bindable var browser = browser
+        @Bindable var navigation = navigation
         switch store.phase {
         case .idle, .loading:
             ProgressView()
@@ -171,13 +143,13 @@ struct ContentView: View {
                 }
             }
         case .loaded:
-            if let location = browser.location {
+            if let location = navigation.location {
                 Group {
                     switch mode {
-                    case .list: RaindropListView(raindrops: raindrops, selection: $browser.selection)
+                    case .list: ListView(raindrops: raindrops, selection: $navigation.selection)
                     case .cards:
-                        RaindropGridView(raindrops: raindrops, selection: $browser.selection, folders: folders) { id in
-                            browser.go(to: .collection(id))
+                        GridView(raindrops: raindrops, selection: $navigation.selection, collections: subcollections) { id in
+                            navigation.go(to: .collection(id))
                         }
                     }
                 }
@@ -186,11 +158,11 @@ struct ContentView: View {
                 // (`ViewListTree.visitItem`), which crashed both the app and the live preview.
                 .id(location)
                 .overlay {
-                    if raindrops.isEmpty, folders.isEmpty {
-                        if browser.searchText.isEmpty {
+                    if raindrops.isEmpty, subcollections.isEmpty {
+                        if navigation.searchText.isEmpty {
                             ContentUnavailableView("No Bookmarks", systemImage: "bookmark", description: Text("Nothing saved here yet."))
                         } else {
-                            ContentUnavailableView.search(text: browser.searchText)
+                            ContentUnavailableView.search(text: navigation.searchText)
                         }
                     }
                 }
@@ -203,7 +175,7 @@ struct ContentView: View {
     @ViewBuilder
     private var detail: some View {
         if let selectedRaindrop {
-            RaindropDetailView(raindrop: selectedRaindrop)
+            PageView(raindrop: selectedRaindrop)
         } else {
             noSelection
         }
@@ -212,7 +184,7 @@ struct ContentView: View {
     @ViewBuilder
     private var inspector: some View {
         if let selectedRaindrop {
-            RaindropInfoView(raindrop: selectedRaindrop)
+            InspectorView(raindrop: selectedRaindrop)
         } else {
             noSelection
         }
@@ -220,8 +192,8 @@ struct ContentView: View {
 
     @ViewBuilder
     private var noSelection: some View {
-        if browser.selection.count > 1 {
-            ContentUnavailableView("\(browser.selection.count) Bookmarks Selected", systemImage: "square.stack")
+        if navigation.selection.count > 1 {
+            ContentUnavailableView("\(navigation.selection.count) Bookmarks Selected", systemImage: "square.stack")
         } else {
             ContentUnavailableView("No Bookmark Selected", systemImage: "bookmark")
         }
@@ -233,6 +205,6 @@ struct ContentView: View {
         // A real window size: without one the canvas sizes the split view to fit its content,
         // and the columns come out squeezed or jumping.
         .frame(width: 1200, height: 760)
-        .environment(LibraryStore.preview)
+        .previewEnvironment()
         .environment(AppSession())
 }

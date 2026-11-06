@@ -1,0 +1,264 @@
+import Foundation
+import Network
+import Observation
+
+/// A filtered, sorted list of raindrops, as `LibraryStore.raindrops(in:matching:sortedBy:)` returns it.
+struct RaindropQuery: Hashable {
+    var item: SidebarItem
+    var text: String
+    var sort: RaindropSort
+}
+
+/// A collection plus its nested children, for the sidebar outline.
+struct CollectionNode: Identifiable, Hashable {
+    let collection: RaindropCollection
+    /// `nil` (not empty) for leaves, so `OutlineGroup` draws no disclosure triangle.
+    let children: [CollectionNode]?
+
+    var id: RaindropCollection.ID { collection.id }
+}
+
+/// The app's single source of truth for collections and raindrops.
+@Observable
+final class LibraryStore {
+    enum Phase: Equatable {
+        case idle, loading, loaded
+        case failed(String)
+    }
+
+    private(set) var phase: Phase = .idle
+    private(set) var collections: [RaindropCollection] = [] {
+        didSet { libraryChanged() }
+    }
+    private(set) var raindrops: [Raindrop] = [] {
+        didSet { rebuildDerivedState() }
+    }
+    /// Goes up whenever a bookmark or collection changes, for views that keep their own copy.
+    private(set) var revision = 0
+    /// How many raindrops each sidebar item shows. Counted once per change, not once per row.
+    private(set) var counts: [SidebarItem: Int] = [:]
+    /// Every tag in use, with how many raindrops carry it, most used first.
+    private(set) var tags: [(name: String, count: Int)] = []
+    /// True while syncing, including when cached data is already on screen.
+    private(set) var isSyncing = false
+    private(set) var lastSyncedAt: Date?
+    /// Set when a sync fails while cached data is on screen; cleared by the next success.
+    private(set) var syncError: String?
+    /// Raindrops with a write on its way to the server. Their actions are disabled until it's answered.
+    private(set) var pendingIDs: Set<Raindrop.ID> = []
+    /// The last write the server didn't accept, for the UI to present. Nothing changed locally.
+    var writeFailure: WriteFailure?
+    /// Whether the system reports a network path. Only a hint: a write can still fail while "online".
+    private(set) var isOnline = true
+    #if DEBUG
+    /// Makes every write fail before reaching the server, to check that nothing changes locally.
+    var simulatesWriteFailures = false
+    #endif
+
+    @ObservationIgnored let service: any RaindropService
+    @ObservationIgnored private let cache: LibraryCache
+    @ObservationIgnored private lazy var syncEngine = SyncEngine(service: service, cache: cache)
+    @ObservationIgnored private let pathMonitor = NWPathMonitor()
+    /// The end of the queue that syncs and writes run on, one at a time. A sync that started
+    /// before a write can then never put the pre-write copy back over the server's answer.
+    @ObservationIgnored private var lastOperation: Task<Void, Never>?
+    /// Where each raindrop is in `raindrops`, for `raindrop(id:)`.
+    @ObservationIgnored private(set) var indexByID: [Raindrop.ID: Int] = [:]
+    /// Filtered and sorted lists already worked out, until `raindrops` changes. Views ask for
+    /// the same list several times per update, and on every selection change.
+    @ObservationIgnored var queryResults: [RaindropQuery: [Raindrop]] = [:]
+    /// The Quick Search index, built in the background on first use, until the library changes.
+    @ObservationIgnored var searchIndexTask: Task<SearchIndex, Never>?
+    /// That index once it's built, for answering a keystroke without waiting.
+    @ObservationIgnored var readySearchIndex: SearchIndex?
+
+    var sourceName: String { service.name }
+
+    /// Writes are offered only with a loaded library and a network connection.
+    var canWrite: Bool { phase == .loaded && isOnline }
+
+    init(service: any RaindropService = SampleDataService(), cache: LibraryCache? = nil) {
+        self.service = service
+        self.cache = cache ?? LibraryCache(identifier: service.cacheIdentifier)
+        pathMonitor.pathUpdateHandler = { [weak self] path in
+            Task { @MainActor in self?.isOnline = path.status == .satisfied }
+        }
+        pathMonitor.start(queue: .main)
+    }
+
+    deinit {
+        pathMonitor.cancel()
+    }
+
+    /// Runs `operation` after every sync and write queued before it.
+    func enqueue<T>(_ operation: @escaping () async throws -> T) async throws -> T {
+        let previous = lastOperation
+        let task = Task {
+            await previous?.value
+            return try await operation()
+        }
+        lastOperation = Task { _ = try? await task.value }
+        return try await task.value
+    }
+
+    /// Shows the cached library immediately, then syncs in the background.
+    func load() async {
+        if phase == .idle { reloadFromCache() }
+        await sync()
+    }
+
+    /// Syncs unless the last sync finished less than `interval` ago. Used for the automatic syncs.
+    func syncIfStale(olderThan interval: Duration = .seconds(60)) async {
+        if let lastSyncedAt, Date.now.timeIntervalSince(lastSyncedAt) < interval / .seconds(1) { return }
+        await sync()
+    }
+
+    func sync() async {
+        guard !isSyncing else { return }
+        isSyncing = true
+        defer { isSyncing = false }
+        if phase != .loaded { phase = .loading }
+
+        do {
+            let report = try await enqueue { try await self.syncEngine.sync() }
+            if report.kind != .upToDate || phase != .loaded {
+                reloadFromCache()
+            }
+            lastSyncedAt = report.date
+            syncError = nil
+            phase = .loaded
+        } catch is CancellationError {
+            if phase == .loading { phase = .idle }
+        } catch {
+            if phase == .loaded {
+                syncError = error.localizedDescription
+            } else {
+                phase = .failed(error.localizedDescription)
+            }
+        }
+    }
+
+    /// Forgets the cached library. The store isn't used afterwards: the app makes a new one.
+    func clearCache() {
+        try? cache.removeAll()
+    }
+
+    private func reloadFromCache() {
+        guard let collections = try? cache.collections(),
+              let raindrops = try? cache.raindrops(),
+              !(collections.isEmpty && raindrops.isEmpty)
+        else { return }
+        self.collections = collections
+        self.raindrops = raindrops
+        lastSyncedAt = cache.syncState.lastSyncedAt
+        phase = .loaded
+    }
+
+    // MARK: Write primitives
+
+    /// Marks the raindrops pending, runs `write` on the queue for those not already pending,
+    /// then clears them. Returns nil when there was nothing to write.
+    @discardableResult
+    func writing<T>(_ ids: [Raindrop.ID], _ write: @escaping ([Raindrop]) async throws -> T) async throws -> T? {
+        let targets = ids.compactMap(raindrop(id:)).filter { !pendingIDs.contains($0.id) }
+        guard !targets.isEmpty else { return nil }
+        let targetIDs = Set(targets.map(\.id))
+        pendingIDs.formUnion(targetIDs)
+        defer { pendingIDs.subtract(targetIDs) }
+        return try await enqueue {
+            try self.failIfSimulating()
+            return try await write(targets)
+        }
+    }
+
+    /// Stores raindrops as the server returned (or confirmed) them, and shows them.
+    func apply(_ updated: [Raindrop]) throws {
+        try cache.upsertRaindrops(updated)
+        try cache.save()
+        // One assignment, so the derived state is rebuilt once rather than once per raindrop.
+        var all = raindrops
+        for raindrop in updated {
+            if let index = indexByID[raindrop.id] {
+                all[index] = raindrop
+            } else {
+                all.append(raindrop)
+            }
+        }
+        raindrops = all
+    }
+
+    /// Drops raindrops the server deleted for good.
+    func forget(_ ids: [Raindrop.ID]) throws {
+        try cache.deleteRaindrops(ids)
+        try cache.save()
+        let ids = Set(ids)
+        raindrops.removeAll { ids.contains($0.id) }
+    }
+
+    /// Stores a collection as the server returned it, and shows it.
+    func apply(_ collection: RaindropCollection) throws {
+        try cache.upsertCollection(collection)
+        try cache.save()
+        if let index = collections.firstIndex(where: { $0.id == collection.id }) {
+            collections[index] = collection
+        } else {
+            collections.append(collection)
+        }
+    }
+
+    private func libraryChanged() {
+        revision += 1
+        searchIndexTask = nil
+        readySearchIndex = nil
+    }
+
+    private func rebuildDerivedState() {
+        libraryChanged()
+        indexByID = Dictionary(raindrops.enumerated().map { ($1.id, $0) }) { first, _ in first }
+        queryResults = [:]
+
+        var counts: [SidebarItem: Int] = [:]
+        for raindrop in raindrops {
+            if raindrop.isInTrash {
+                counts[.trash, default: 0] += 1
+                continue
+            }
+            counts[.all, default: 0] += 1
+            counts[.collection(raindrop.collectionID), default: 0] += 1
+            if raindrop.collectionID == SystemCollectionID.unsorted { counts[.unsorted, default: 0] += 1 }
+            if raindrop.important { counts[.important, default: 0] += 1 }
+            for tag in Set(raindrop.tags) { counts[.tag(tag), default: 0] += 1 }
+        }
+        self.counts = counts
+        tags = counts
+            .compactMap { item, count in
+                guard case .tag(let name) = item else { return nil }
+                return (name: name, count: count)
+            }
+            .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
+    }
+
+    func failIfSimulating() throws {
+        #if DEBUG
+        if simulatesWriteFailures { throw SimulatedWriteFailure() }
+        #endif
+    }
+}
+
+#if DEBUG
+private struct SimulatedWriteFailure: LocalizedError {
+    var errorDescription: String? { "Simulated failure (Debug › Simulate Write Failures). Nothing was sent." }
+}
+#endif
+
+extension LibraryStore {
+    /// A store filled synchronously from the bundled sample data, for previews.
+    static var preview: LibraryStore {
+        let service = SampleDataService()
+        let store = LibraryStore(service: service, cache: LibraryCache(identifier: "preview", inMemory: true))
+        store.collections = (try? service.loadCollections()) ?? []
+        store.raindrops = (try? service.loadRaindrops()) ?? []
+        store.phase = .loaded
+        return store
+    }
+}

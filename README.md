@@ -39,11 +39,22 @@ Running under Xcode's debugger can crash at launch with *"The window has been ma
 
 ## Layout
 
-The cards collection uses `NSCollectionView` for layout, selection, and scrolling, with SwiftUI cards and folder tiles hosted in reusable items. The rest of the interface stays in SwiftUI.
+The interface is SwiftUI. Cards mode is a `LazyVGrid`. Thin AppKit views fill the gaps SwiftUI leaves: grid keyboard focus (`GridKeyResponder`) and drag images that shrink over collection chips (`CollectionDropZone`).
+
+Folders follow features, and each file is named after the type it holds. A `private` helper can share its only user's file. Anything used from another file gets its own file. A feature's main view is named after the feature (`GridView`, `ListView`, `InspectorView`); views of one item are named after the item (`RaindropCard`, `RaindropRow`, `CollectionTile`).
 
 | Path | Contents |
 | --- | --- |
-| `MacRaindrop/Models` | Codable types mirroring the Raindrop REST API |
-| `MacRaindrop/Data` | API client, sample-data service, SwiftData cache, sync engine, store |
-| `MacRaindrop/Views` | Sidebar, list, detail/inspector views |
-| `MacRaindrop/Views/Grid` | Cards mode: the AppKit collection (`GridCollectionView`, with layout settings in `GridMetrics`), cards and folder tiles |
+| `MacRaindrop/` | App entry (`MacRaindropApp`, `AppDelegate`, `AppSession`), the window (`ContentView`, `ContentToolbar`), and its `NavigationModel`: location, history, selection, search |
+| `MacRaindrop/Sidebar`, `Grid`, `List`, `Inspector` | The window's parts. `Grid` is cards mode; `List` is list mode and its page view |
+| `MacRaindrop/Commands` | Menu bar commands |
+| `MacRaindrop/Actions` | Bookmark actions menu, the prompts they raise (`ActionPrompts`), and their sheets |
+| `MacRaindrop/DragAndDrop` | Drop targets, the moves they make (`LibraryDrop`), and dragging bookmarks out |
+| `MacRaindrop/QuickSearch` | The ⇧⌘L panel |
+| `MacRaindrop/Account` | Token prompt and Settings › Account |
+| `MacRaindrop/Models` | Codable types mirroring the Raindrop REST API, plus `SidebarItem` and `RaindropSort` |
+| `MacRaindrop/Library` | `LibraryStore` and what keeps it: SwiftData cache, sync engine, search index, automatic sync |
+| `MacRaindrop/Services` | API client, sample-data service, image pipeline |
+| `MacRaindrop/Shared` | Views used across features (`CoverImage`, `TagList`, `FlowLayout`), display helpers, and `previewEnvironment()` |
+
+Previews live with the view they preview. The sidebar's are the exception, in `SidebarView+Previews.swift`, because previewing a sectioned `List` from its own file crashes the canvas.

@@ -28,7 +28,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Windows that warrant a Dock icon: the library and Settings, not the Quick Search panel.
     private static var hasAppWindow: Bool {
         NSApp.windows.contains { window in
-            !(window is NSPanel) && window.canBecomeMain && (window.isVisible || window.isMiniaturized)
+            guard !(window is NSPanel) else { return false }
+            // A minimized window can't become main, but it's still the library's window: without
+            // a Dock icon, it would have nowhere to be restored from.
+            return window.isMiniaturized || (window.isVisible && window.canBecomeMain)
         }
     }
 

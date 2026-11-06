@@ -19,6 +19,9 @@ import SwiftUI
             .environment(session)
         }
         .defaultSize(width: 1280, height: 800)
+        // Every launch opens a window. Restored, a window minimized at quit came back minimized,
+        // and the app looked as if it had launched in the background.
+        .restorationBehavior(.disabled)
         .commands {
             AppCommands()
             if let store = session.store {
@@ -34,7 +37,6 @@ import SwiftUI
                     } set: {
                         store.simulatesWriteFailures = $0
                     })
-                    CardSpacingPicker()
                 }
                 #endif
             }
@@ -47,15 +49,3 @@ import SwiftUI
     }
 }
 
-#if DEBUG
-/// Switches how bookmark cards use a row's spare width, to compare them while resizing.
-private struct CardSpacingPicker: View {
-    @AppStorage(CardSpacing.storageKey) private var cardSpacing: CardSpacing = .stretch
-
-    var body: some View {
-        Picker("Card Spacing", selection: $cardSpacing) {
-            ForEach(CardSpacing.allCases) { Text($0.title).tag($0) }
-        }
-    }
-}
-#endif
