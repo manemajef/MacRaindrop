@@ -32,6 +32,12 @@ struct GridView: View {
 
     private var columns: Int { GridMetrics.columns(across: width, minimum: GridMetrics.minCardWidth) }
     private var selected: [Raindrop] { raindrops.filter { selection.contains($0.id) } }
+    /// What Quick Look shows: the selected pages in grid order, starting at the card the arrow keys are on.
+    private var preview: QuickLookItems {
+        let shown = selected.filter { $0.url != nil }
+        let current = shown.firstIndex { $0.id == cursor } ?? 0
+        return QuickLookItems(urls: shown.compactMap(\.url), current: current)
+    }
 
     var body: some View {
         ScrollView {
@@ -74,6 +80,7 @@ struct GridView: View {
             GridKeyResponder(keys: keys, actions: GridKeyActions(
                 move: move,
                 open: openSelection,
+                preview: { preview },
                 delete: { prompts.delete(selected, in: store) },
                 clear: clearSelection,
                 selectAll: {
@@ -84,6 +91,10 @@ struct GridView: View {
             ))
         }
         .raindropDragContainer(selection: selection)
+        // An open Quick Look panel follows the selection, as in Finder.
+        .onChange(of: selection) { keys.view?.reloadPreview() }
+        .onChange(of: raindrops) { keys.view?.reloadPreview() }
+        .onDisappear { keys.view?.closePreview() }
     }
 
     private func card(_ raindrop: Raindrop) -> some View {
