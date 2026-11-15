@@ -45,7 +45,7 @@ struct RaindropRow: View {
                         .labelStyle(.iconOnly)
                     Text(raindrop.domain)
                     Text("·")
-                    Text(raindrop.created, format: .relative(presentation: .named))
+                    Text(raindrop.created, format: .relativeNamed)
                     if raindrop.broken {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(.orange)

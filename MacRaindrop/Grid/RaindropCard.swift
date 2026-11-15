@@ -8,7 +8,7 @@ struct RaindropCard: View {
     var isPending = false
     static let coverHeight: CGFloat = 150
     static let titleLines = 3
-    static let excerptLines = 4
+    static let excerptLines = 3
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -99,7 +99,7 @@ struct RaindropCard: View {
                     .foregroundStyle(.pink)
                     .accessibilityLabel("Favorite")
             }
-            Text(raindrop.created, format: .dateTime.day().month(.abbreviated))
+            Text(raindrop.created, format: .shortDay)
         }
         .font(.caption)
         .foregroundStyle(.secondary)

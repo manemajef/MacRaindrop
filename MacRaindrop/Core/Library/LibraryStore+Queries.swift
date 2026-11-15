@@ -22,6 +22,15 @@ extension LibraryStore {
         }
     }
 
+    /// The name to show for the collection a raindrop is in, including the system ones.
+    func collectionTitle(for id: RaindropCollection.ID) -> String {
+        switch id {
+        case SystemCollectionID.unsorted: "Unsorted"
+        case SystemCollectionID.trash: "Trash"
+        default: collection(id: id)?.title ?? "Unknown"
+        }
+    }
+
     var collectionTree: [CollectionNode] {
         let byParent = Dictionary(grouping: collections, by: \.parentID)
         func nodes(under parent: Int?) -> [CollectionNode] {

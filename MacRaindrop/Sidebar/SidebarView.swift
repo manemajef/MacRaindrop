@@ -165,7 +165,7 @@ private struct SyncStatusIcon: View {
         } else if store.isSyncing {
             status = "Syncing…"
         } else if let date = store.lastSyncedAt {
-            status = "Synced \(date.formatted(.relative(presentation: .named)))"
+            status = "Synced \(date.formatted(.relativeNamed))"
         } else {
             status = "Not synced yet"
         }
