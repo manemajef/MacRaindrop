@@ -17,11 +17,12 @@ struct InspectorView: View {
     let raindrop: Raindrop
 
     @FocusState private var focus: InspectorFieldID?
+    /// Whether the URL row shows the full URL in a field, rather than the site's domain.
+    @State private var isEditingLink = false
 
     private var edits: InspectorEdits { .edits(for: raindrop.id) }
     /// What's on screen: the server's copy with any unsaved edits on top.
     private var shown: Raindrop { edits.displayed(raindrop) }
-    private var hasCover: Bool { raindrop.coverURL != nil }
     private var isSaving: Bool { edits.isBusy || store.pendingIDs.contains(raindrop.id) }
 
     var body: some View {
@@ -60,11 +61,6 @@ struct InspectorView: View {
 
 
             Section {
-                LabeledContent {
-                    collectionMenu
-                } label: {
-                    Label("Collection", systemImage: "folder")
-                }
                 HStack(alignment: .firstTextBaseline) {
                     Label("Tags", systemImage: "number")
                     TagTokenField(tags: shown.tags, knownTags: store.tags.map(\.name)) {
@@ -74,23 +70,7 @@ struct InspectorView: View {
             }
 
             Section {
-                CommitTextField(
-                    value: shown.link, prompt: "https://", field: .link, focus: $focus
-                ) { link in
-                    let link = link.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !link.isEmpty { change(RaindropChanges(link: link)) }
-                } label: {
-                    Label("URL", systemImage: "link")
-                }
-                .lineLimit(1)
-                .truncationMode(.middle)
-
-                // With a cover, favoriting is the heart on it instead.
-                if !hasCover {
-                    Toggle(isOn: favoriteBinding) {
-                        Label("Favorite", systemImage: "heart")
-                    }
-                }
+                linkRow
             }
             Section("Notes") {
                 CommitTextField(
@@ -115,7 +95,7 @@ struct InspectorView: View {
         .disabled(!store.canWrite)
         // The cover stays put while the form scrolls under it, softened at its edge.
         .safeAreaBar(edge: .top, spacing: 0) {
-            if hasCover { coverBar }
+            headerBar
         }
         .scrollEdgeEffectStyle(.soft, for: .top)
         .safeAreaInset(edge: .bottom) {
@@ -127,11 +107,32 @@ struct InspectorView: View {
 
     // MARK: Parts
 
-    /// The cover, with the collection pill and the favorite heart floating on its bottom edge.
-    private var coverBar: some View {
+    /// The cover, or a short tinted bar for a bookmark without one, with glass controls
+    /// floating on its bottom edge: the collection and the favorite heart.
+    private var headerBar: some View {
+        Group {
+            if raindrop.coverURL != nil {
+                coverWithBlur
+            } else {
+                coverlessBackground
+            }
+        }
+        .overlay(alignment: .bottom) {
+            GlassEffectContainer {
+                HStack(alignment: .center) {
+                    floatingCollectionMenu
+                    Spacer(minLength: 8)
+                    floatingFavoriteButton
+                }
+            }
+            .padding(10)
+        }
+    }
+
+    /// A progressive blur and a light shade along the bottom, as Music does under its
+    /// controls, so the pills sit on something calm over a busy cover.
+    private var coverWithBlur: some View {
         cover
-            // A progressive blur and a light shade along the bottom, as Music does under
-            // its controls, so the pills sit on something calm over a busy cover.
             .overlay {
                 cover
                     .blur(radius: 16, opaque: true)
@@ -148,16 +149,23 @@ struct InspectorView: View {
                     .frame(height: 80)
                     .allowsHitTesting(false)
             }
-            .overlay(alignment: .bottom) {
-                GlassEffectContainer {
-                    HStack(alignment: .center) {
-                        floatingDomainPill
-                        Spacer(minLength: 8)
-                        floatingFavoriteButton
-                    }
-                }
-                .padding(10)
+    }
+
+    /// The site's icon, enlarged and blurred into a glow of its colors, so a bookmark without a
+    /// cover still gets a header for the controls.
+    private var coverlessBackground: some View {
+        Rectangle()
+            .fill(.quaternary)
+            .overlay {
+                Favicon(domain: raindrop.domain, fallbackSymbol: raindrop.type.systemImage)
+                    .frame(width: 160, height: 160)
+                    .blur(radius: 40)
+                    .opacity(0.7)
             }
+            .frame(maxWidth: .infinity)
+            .frame(height: 96)
+            .clipped()
+            .accessibilityHidden(true)
     }
 
     private var cover: some View {
@@ -166,26 +174,49 @@ struct InspectorView: View {
 
     private static let coverMaxHeight: CGFloat = 240
 
-    /// The site's icon and domain as a glass pill, opening the bookmark in the browser.
+    /// The site's favicon and domain. A click swaps in a field with the full URL to edit, which
+    /// goes back to the domain once it's committed or left.
     @ViewBuilder
-    private var floatingDomainPill: some View {
-        if let url = raindrop.url {
-            Link(destination: url) {
-                Label {
-                    Text(raindrop.domain)
-                } icon: {
-                    Favicon(domain: raindrop.domain, fallbackSymbol: raindrop.type.systemImage)
-                        .frame(width: 16, height: 16)
+    private var linkRow: some View {
+        if isEditingLink {
+            CommitTextField(
+                value: shown.link, prompt: "https://", field: .link, focus: $focus
+            ) { link in
+                let link = link.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !link.isEmpty { change(RaindropChanges(link: link)) }
+            } label: {
+                Label("URL", systemImage: "link")
+            }
+            .lineLimit(1)
+            .onSubmit { isEditingLink = false }
+            .onChange(of: focus) { _, focus in
+                if focus != .link { isEditingLink = false }
+            }
+        } else {
+            Button {
+                isEditingLink = true
+                // The field appears on the next update; focus it once it's there.
+                Task {
+                    try? await Task.sleep(for: .milliseconds(30))
+                    focus = .link
                 }
-                .lineLimit(1)
-                .padding(.horizontal, 12)
-                .frame(height: 24)
-                .contentShape(.capsule)
+            } label: {
+                LabeledContent {
+                    HStack(spacing: 6) {
+                        Favicon(domain: shown.domain, fallbackSymbol: raindrop.type.systemImage)
+                            .frame(width: 16, height: 16)
+                        Text(shown.domain.isEmpty ? shown.link : shown.domain)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                } label: {
+                    Label("URL", systemImage: "link")
+                }
+                .contentShape(.rect)
             }
             .buttonStyle(.plain)
-            .glassEffect(.regular.interactive(), in: .capsule)
-            .fixedSize()
-            .help("Open \(raindrop.domain) in Your Browser")
+            .help(shown.link)
+            .accessibilityHint("Edit the URL")
         }
     }
 
@@ -211,16 +242,38 @@ struct InspectorView: View {
         .disabled(!store.canWrite)
     }
 
-    /// The collection tree as a pop-up, moving the raindrop as soon as one is picked.
-    private var collectionMenu: some View {
+    /// The collection as a glass pill, with the collection tree in its menu. Moves the raindrop
+    /// as soon as one is picked.
+    private var floatingCollectionMenu: some View {
         Menu {
             CollectionMenuItems(isDisabled: { $0 == shown.collectionID }) { id in
                 change(RaindropChanges(collectionID: id))
             }
         } label: {
-            Text(store.collectionTitle(for: shown.collectionID))
+            HStack(spacing: 6) {
+                Label(store.collectionTitle(for: shown.collectionID), systemImage: collectionSymbol)
+                    .lineLimit(1)
+                // The plain button style hides the menu's own indicator.
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+                .padding(.horizontal, 12)
+                .frame(height: 24)
+                .contentShape(.capsule)
         }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        // A menu ignores the glass button style and draws nearly clear, so the glass is explicit.
+        .glassEffect(.regular.interactive(), in: .capsule)
         .fixedSize()
+        .help("Move to Another Collection")
+        .disabled(!store.canWrite)
+    }
+
+    private var collectionSymbol: String {
+        shown.collectionID == SystemCollectionID.unsorted ? "tray" : "folder"
     }
 
     @ViewBuilder
