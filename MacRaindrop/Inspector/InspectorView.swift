@@ -24,92 +24,136 @@ struct InspectorView: View {
     private var isSaving: Bool { edits.isBusy || store.pendingIDs.contains(raindrop.id) }
 
     var body: some View {
-        Form {
-            Section {
-                CommitTextField(
-                    value: shown.title, prompt: "Title", axis: .vertical, field: .title, focus: $focus
-                ) { title in
-                    // A bookmark needs a title; clearing it puts the old one back.
-                    let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !title.isEmpty { change(RaindropChanges(title: title)) }
-                }
-                .font(.title3.weight(.semibold))
-                .lineLimit(1...6)
-                .fullWidthField()
-
-                CommitTextField(
-                    value: shown.excerpt, prompt: "Description", axis: .vertical, field: .excerpt, focus: $focus
-                ) { change(RaindropChanges(excerpt: $0)) }
-                .foregroundStyle(.secondary)
-                .lineLimit(1...10)
-                .fullWidthField()
-            } header: {
+        ScrollView{
+//            Section {
+//                CommitTextField(
+//                    value: shown.title, prompt: "Title", axis: .vertical, field: .title, focus: $focus
+//                ) { title in
+//                    // A bookmark needs a title; clearing it puts the old one back.
+//                    let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+//                    if !title.isEmpty { change(RaindropChanges(title: title)) }
+//                }
+//                .font(.title3.weight(.semibold))
+//                .lineLimit(1...6)
+//                .fullWidthField()
+//                
+//                CommitTextField(
+//                    value: shown.excerpt, prompt: "Description", axis: .vertical, field: .excerpt, focus: $focus
+//                ) { change(RaindropChanges(excerpt: $0)) }
+//                    .foregroundStyle(.secondary)
+//                    .lineLimit(1...10)
+//                    .fullWidthField()
+//            } header: {
+//                if raindrop.coverURL != nil {
+//                    CoverImage(url: raindrop.coverURL, kind: raindrop.type, contentMode: .fit)
+//                        .frame(maxWidth: .infinity, maxHeight: 180)
+//                        .clipShape(.rect(cornerRadius: 8))
+//                        .padding(.bottom, 4)
+//                }
+//            }
+//            .padding()
+            VStack {
                 if raindrop.coverURL != nil {
                     CoverImage(url: raindrop.coverURL, kind: raindrop.type, contentMode: .fit)
-                        .frame(maxWidth: .infinity, maxHeight: 180)
-                        .clipShape(.rect(cornerRadius: 8))
-                        .padding(.bottom, 4)
+                                            .frame(maxWidth: .infinity, maxHeight: 180)
+//                                            .clipShape(.rect(cornerRadius: 8))
+//                                            .padding(.bottom, 4)
+                    
                 }
+                
             }
-
-            Section {
-                CommitTextField(
-                    value: shown.note, prompt: "Note", axis: .vertical, field: .note, focus: $focus
-                ) { change(RaindropChanges(note: $0)) }
-                .lineLimit(3...12)
-                .fullWidthField()
-            }
-
-            Section {
-                LabeledContent {
-                    collectionMenu
-                } label: {
-                    Label("Collection", systemImage: "folder")
+            
+          
+            Form {
+                Section {
+                    CommitTextField(
+                        value: shown.title, prompt: "Title", axis: .vertical, field: .title, focus: $focus
+                    ) { title in
+                        // A bookmark needs a title; clearing it puts the old one back.
+                        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !title.isEmpty { change(RaindropChanges(title: title)) }
+                    }
+                    .font(.title3.weight(.semibold))
+                    .lineLimit(1...6)
+                    .fullWidthField()
+                    
+                    CommitTextField(
+                        value: shown.excerpt, prompt: "Description", axis: .vertical, field: .excerpt, focus: $focus
+                    ) { change(RaindropChanges(excerpt: $0)) }
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1...10)
+                        .fullWidthField()
                 }
-                HStack(alignment: .firstTextBaseline) {
-                    Label("Tags", systemImage: "number")
-                    TagTokenField(tags: shown.tags, knownTags: store.tags.map(\.name)) {
-                        change(RaindropChanges(tags: $0))
+//                } header: {
+//                    if raindrop.coverURL != nil {
+//                        CoverImage(url: raindrop.coverURL, kind: raindrop.type, contentMode: .fit)
+//                            .frame(maxWidth: .infinity, maxHeight: 180)
+//                            .clipShape(.rect(cornerRadius: 8))
+//                            .padding(.bottom, 4)
+//                    }
+//                }
+//                
+                
+               
+                
+                Section {
+                    LabeledContent {
+                        collectionMenu
+                    } label: {
+                        Label("Collection", systemImage: "folder")
+                    }
+                    HStack(alignment: .firstTextBaseline) {
+                        Label("Tags", systemImage: "number")
+                        TagTokenField(tags: shown.tags, knownTags: store.tags.map(\.name)) {
+                            change(RaindropChanges(tags: $0))
+                        }
                     }
                 }
-            }
-
-            Section {
-                CommitTextField(
-                    value: shown.link, prompt: "https://", field: .link, focus: $focus
-                ) { link in
-                    let link = link.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !link.isEmpty { change(RaindropChanges(link: link)) }
-                } label: {
-                    Label("URL", systemImage: "link")
+                
+                Section {
+                    CommitTextField(
+                        value: shown.link, prompt: "https://", field: .link, focus: $focus
+                    ) { link in
+                        let link = link.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !link.isEmpty { change(RaindropChanges(link: link)) }
+                    } label: {
+                        Label("URL", systemImage: "link")
+                    }
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    
+                    Toggle(isOn: Binding {
+                        shown.important
+                    } set: {
+                        change(RaindropChanges(important: $0))
+                    }) {
+                        Label("Favorite", systemImage: "heart")
+                    }
                 }
-                .lineLimit(1)
-                .truncationMode(.middle)
-
-                Toggle(isOn: Binding {
-                    shown.important
-                } set: {
-                    change(RaindropChanges(important: $0))
-                }) {
-                    Label("Favorite", systemImage: "heart")
+                Section("Notes") {
+                    CommitTextField(
+                        value: shown.note, prompt: "Note", axis: .vertical, field: .note, focus: $focus
+                    ) { change(RaindropChanges(note: $0)) }
+                        .lineLimit(3...12)
+                        .fullWidthField()
+                }
+                
+                if !raindrop.highlights.isEmpty {
+                    Section("Highlights") {
+                        ForEach(raindrop.highlights) { HighlightView(highlight: $0) }
+                    }
+                }
+                
+                Section("Information") {
+                    information
                 }
             }
-
-            if !raindrop.highlights.isEmpty {
-                Section("Highlights") {
-                    ForEach(raindrop.highlights) { HighlightView(highlight: $0) }
-                }
+            .formStyle(.grouped)
+            // Read-only while offline; fields still show their values.
+            .disabled(!store.canWrite)
+            .safeAreaInset(edge: .bottom) {
+                if isSaving { savingStatus }
             }
-
-            Section("Information") {
-                information
-            }
-        }
-        .formStyle(.grouped)
-        // Read-only while offline; fields still show their values.
-        .disabled(!store.canWrite)
-        .safeAreaInset(edge: .bottom) {
-            if isSaving { savingStatus }
         }
         .animation(.default, value: isSaving)
         .onChange(of: prompts.editRequest, initial: true) { takeEditRequest() }
