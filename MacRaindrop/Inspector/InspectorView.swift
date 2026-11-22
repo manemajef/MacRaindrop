@@ -21,69 +21,32 @@ struct InspectorView: View {
     private var edits: InspectorEdits { .edits(for: raindrop.id) }
     /// What's on screen: the server's copy with any unsaved edits on top.
     private var shown: Raindrop { edits.displayed(raindrop) }
+    private var hasCover: Bool { raindrop.coverURL != nil }
     private var isSaving: Bool { edits.isBusy || store.pendingIDs.contains(raindrop.id) }
 
     var body: some View {
-        ScrollView{
-//            Section {
-//                CommitTextField(
-//                    value: shown.title, prompt: "Title", axis: .vertical, field: .title, focus: $focus
-//                ) { title in
-//                    // A bookmark needs a title; clearing it puts the old one back.
-//                    let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-//                    if !title.isEmpty { change(RaindropChanges(title: title)) }
-//                }
-//                .font(.title3.weight(.semibold))
-//                .lineLimit(1...6)
-//                .fullWidthField()
-//                
-//                CommitTextField(
-//                    value: shown.excerpt, prompt: "Description", axis: .vertical, field: .excerpt, focus: $focus
-//                ) { change(RaindropChanges(excerpt: $0)) }
-//                    .foregroundStyle(.secondary)
-//                    .lineLimit(1...10)
-//                    .fullWidthField()
-//            } header: {
-//                if raindrop.coverURL != nil {
-//                    CoverImage(url: raindrop.coverURL, kind: raindrop.type, contentMode: .fit)
-//                        .frame(maxWidth: .infinity, maxHeight: 180)
-//                        .clipShape(.rect(cornerRadius: 8))
-//                        .padding(.bottom, 4)
-//                }
-//            }
-//            .padding()
-            VStack {
-                if raindrop.coverURL != nil {
-                    CoverImage(url: raindrop.coverURL, kind: raindrop.type, contentMode: .fit)
-                                            .frame(maxWidth: .infinity, maxHeight: 180)
-//                                            .clipShape(.rect(cornerRadius: 8))
-//                                            .padding(.bottom, 4)
-                    
+        Form {
+            Section {
+                CommitTextField(
+                    value: shown.title, prompt: "Title", axis: .vertical, field: .title, focus: $focus
+                ) { title in
+                    // A bookmark needs a title; clearing it puts the old one back.
+                    let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !title.isEmpty { change(RaindropChanges(title: title)) }
                 }
-                
-            }
-            
-          
-            Form {
-                Section {
-                    CommitTextField(
-                        value: shown.title, prompt: "Title", axis: .vertical, field: .title, focus: $focus
-                    ) { title in
-                        // A bookmark needs a title; clearing it puts the old one back.
-                        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-                        if !title.isEmpty { change(RaindropChanges(title: title)) }
-                    }
-                    .font(.title3.weight(.semibold))
-                    .lineLimit(1...6)
+                .font(.title3.weight(.semibold))
+                .lineLimit(1...6)
+                .fullWidthField()
+
+                CommitTextField(
+                    value: shown.excerpt, prompt: "Description", axis: .vertical, field: .excerpt, focus: $focus
+                ) { change(RaindropChanges(excerpt: $0)) }
+                    // A concrete color: the field editor ignores hierarchical styles like
+                    // `.secondary`, so the text turned primary while and after editing.
+                    .foregroundStyle(Color(nsColor: .secondaryLabelColor))
+                    .lineLimit(1...10)
                     .fullWidthField()
-                    
-                    CommitTextField(
-                        value: shown.excerpt, prompt: "Description", axis: .vertical, field: .excerpt, focus: $focus
-                    ) { change(RaindropChanges(excerpt: $0)) }
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1...10)
-                        .fullWidthField()
-                }
+            }
 //                } header: {
 //                    if raindrop.coverURL != nil {
 //                        CoverImage(url: raindrop.coverURL, kind: raindrop.type, contentMode: .fit)
@@ -92,74 +55,169 @@ struct InspectorView: View {
 //                            .padding(.bottom, 4)
 //                    }
 //                }
-//                
-                
-               
-                
-                Section {
+//
+
+
+
+            Section {
+                // With a cover, the collection is a pill on it instead.
+                if !hasCover {
                     LabeledContent {
                         collectionMenu
                     } label: {
                         Label("Collection", systemImage: "folder")
                     }
-                    HStack(alignment: .firstTextBaseline) {
-                        Label("Tags", systemImage: "number")
-                        TagTokenField(tags: shown.tags, knownTags: store.tags.map(\.name)) {
-                            change(RaindropChanges(tags: $0))
-                        }
+                }
+                HStack(alignment: .firstTextBaseline) {
+                    Label("Tags", systemImage: "number")
+                    TagTokenField(tags: shown.tags, knownTags: store.tags.map(\.name)) {
+                        change(RaindropChanges(tags: $0))
                     }
                 }
-                
-                Section {
-                    CommitTextField(
-                        value: shown.link, prompt: "https://", field: .link, focus: $focus
-                    ) { link in
-                        let link = link.trimmingCharacters(in: .whitespacesAndNewlines)
-                        if !link.isEmpty { change(RaindropChanges(link: link)) }
-                    } label: {
-                        Label("URL", systemImage: "link")
-                    }
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    
-                    Toggle(isOn: Binding {
-                        shown.important
-                    } set: {
-                        change(RaindropChanges(important: $0))
-                    }) {
+            }
+
+            Section {
+                CommitTextField(
+                    value: shown.link, prompt: "https://", field: .link, focus: $focus
+                ) { link in
+                    let link = link.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !link.isEmpty { change(RaindropChanges(link: link)) }
+                } label: {
+                    Label("URL", systemImage: "link")
+                }
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+                // With a cover, favoriting is the heart on it instead.
+                if !hasCover {
+                    Toggle(isOn: favoriteBinding) {
                         Label("Favorite", systemImage: "heart")
                     }
                 }
-                Section("Notes") {
-                    CommitTextField(
-                        value: shown.note, prompt: "Note", axis: .vertical, field: .note, focus: $focus
-                    ) { change(RaindropChanges(note: $0)) }
-                        .lineLimit(3...12)
-                        .fullWidthField()
-                }
-                
-                if !raindrop.highlights.isEmpty {
-                    Section("Highlights") {
-                        ForEach(raindrop.highlights) { HighlightView(highlight: $0) }
-                    }
-                }
-                
-                Section("Information") {
-                    information
+            }
+            Section("Notes") {
+                CommitTextField(
+                    value: shown.note, prompt: "Note", axis: .vertical, field: .note, focus: $focus
+                ) { change(RaindropChanges(note: $0)) }
+                    .lineLimit(3...12)
+                    .fullWidthField()
+            }
+
+            if !raindrop.highlights.isEmpty {
+                Section("Highlights") {
+                    ForEach(raindrop.highlights) { HighlightView(highlight: $0) }
                 }
             }
-            .formStyle(.grouped)
-            // Read-only while offline; fields still show their values.
-            .disabled(!store.canWrite)
-            .safeAreaInset(edge: .bottom) {
-                if isSaving { savingStatus }
+
+            Section("Information") {
+                information
             }
+        }
+        .formStyle(.grouped)
+        // Read-only while offline; fields still show their values.
+        .disabled(!store.canWrite)
+        // The cover stays put while the form scrolls under it, softened at its edge.
+        .safeAreaBar(edge: .top, spacing: 0) {
+            if hasCover { coverBar }
+        }
+        .scrollEdgeEffectStyle(.soft, for: .top)
+        .safeAreaInset(edge: .bottom) {
+            if isSaving { savingStatus }
         }
         .animation(.default, value: isSaving)
         .onChange(of: prompts.editRequest, initial: true) { takeEditRequest() }
     }
 
     // MARK: Parts
+
+    /// The cover, with the collection pill and the favorite heart floating on its bottom edge.
+    private var coverBar: some View {
+        cover
+            // A progressive blur and a light shade along the bottom, as Music does under
+            // its controls, so the pills sit on something calm over a busy cover.
+            .overlay {
+                cover
+                    .blur(radius: 16, opaque: true)
+                    .mask {
+                        LinearGradient(stops: [
+                            .init(color: .clear, location: 0.5),
+                            .init(color: .black, location: 0.85),
+                        ], startPoint: .top, endPoint: .bottom)
+                    }
+                    .allowsHitTesting(false)
+            }
+            .overlay(alignment: .bottom) {
+                LinearGradient(colors: [.clear, .black.opacity(0.25)], startPoint: .top, endPoint: .bottom)
+                    .frame(height: 80)
+                    .allowsHitTesting(false)
+            }
+            .overlay(alignment: .bottom) {
+                GlassEffectContainer {
+                    HStack(alignment: .center) {
+                        floatingCollectionMenu
+                        Spacer(minLength: 8)
+                        floatingFavoriteButton
+                    }
+                }
+                .padding(10)
+            }
+    }
+
+    private var cover: some View {
+        CoverImage(url: raindrop.coverURL, kind: raindrop.type, fillsWidthUpTo: Self.coverMaxHeight)
+    }
+
+    private static let coverMaxHeight: CGFloat = 240
+
+    /// The collection as a glass pill: the same menu as the form row, moving the raindrop as
+    /// soon as one is picked.
+    private var floatingCollectionMenu: some View {
+        Menu {
+            CollectionMenuItems(isDisabled: { $0 == shown.collectionID }) { id in
+                change(RaindropChanges(collectionID: id))
+            }
+        } label: {
+            Label(store.collectionTitle(for: shown.collectionID), systemImage: collectionSymbol)
+                .lineLimit(1)
+                .padding(.horizontal, 12)
+                .frame(height: 24)
+                .contentShape(.capsule)
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.visible)
+        // A menu ignores the glass button style and draws nearly clear, so the glass is explicit.
+        .glassEffect(.regular.interactive(), in: .capsule)
+        .fixedSize()
+        .help("Move to Another Collection")
+        .disabled(!store.canWrite)
+    }
+
+    private var collectionSymbol: String {
+        shown.collectionID == SystemCollectionID.unsorted ? "tray" : "folder"
+    }
+
+    private var favoriteBinding: Binding<Bool> {
+        Binding { shown.important } set: { change(RaindropChanges(important: $0)) }
+    }
+
+    /// A heart over the cover, like Apple Music's, to favorite without scrolling to the toggle.
+    private var floatingFavoriteButton: some View {
+        Button {
+            favoriteBinding.wrappedValue.toggle()
+        } label: {
+            Image(systemName: shown.important ? "heart.fill" : "heart")
+                .foregroundStyle(shown.important ? AnyShapeStyle(.pink) : AnyShapeStyle(.primary))
+                .contentTransition(.symbolEffect(.replace))
+                .frame(width: 32, height: 28)
+                .contentShape(.circle)
+        }
+        .buttonStyle(.plain)
+        .glassEffect(.regular.interactive(), in: .circle)
+        .help(shown.important ? "Remove from Favorites" : "Add to Favorites")
+        .accessibilityLabel(shown.important ? "Remove from Favorites" : "Add to Favorites")
+        .disabled(!store.canWrite)
+    }
 
     /// The collection tree as a pop-up, moving the raindrop as soon as one is picked.
     private var collectionMenu: some View {

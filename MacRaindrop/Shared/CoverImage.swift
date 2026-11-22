@@ -8,6 +8,9 @@ struct CoverImage: View {
     let url: URL?
     let kind: Raindrop.Kind
     var contentMode: ContentMode = .fill
+    /// Set to take the full width offered, as tall as the image's shape needs up to this
+    /// height, and crop beyond it, rather than leave bars at the sides.
+    var fillsWidthUpTo: CGFloat? = nil
 
     /// The last cover loaded, with its URL, so a stale one never shows after `url` changes.
     @State private var loaded: (url: URL, image: CGImage)?
@@ -20,7 +23,20 @@ struct CoverImage: View {
 
     var body: some View {
         Group {
-            if let image {
+            if let maxHeight = fillsWidthUpTo {
+                // Until the image loads, a 16:9 placeholder.
+                let aspectRatio = image.map { CGFloat($0.width) / CGFloat(max($0.height, 1)) } ?? 16 / 9
+                WidthFillingLayout(aspectRatio: aspectRatio, maxHeight: maxHeight) {
+                    if let image {
+                        Image(decorative: image, scale: 1)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } else {
+                        placeholder
+                    }
+                }
+                .clipped()
+            } else if let image {
                 Image(decorative: image, scale: 1)
                     .resizable()
                     .aspectRatio(contentMode: contentMode)
@@ -45,6 +61,23 @@ struct CoverImage: View {
                     .font(.title3)
                     .foregroundStyle(.secondary)
             }
+    }
+}
+
+/// The full width offered, by `width / aspectRatio` high up to `maxHeight`, for one subview.
+private struct WidthFillingLayout: Layout {
+    let aspectRatio: CGFloat
+    let maxHeight: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? 300
+        return CGSize(width: width, height: min(width / aspectRatio, maxHeight))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        for subview in subviews {
+            subview.place(at: CGPoint(x: bounds.midX, y: bounds.midY), anchor: .center, proposal: ProposedViewSize(bounds.size))
+        }
     }
 }
 
