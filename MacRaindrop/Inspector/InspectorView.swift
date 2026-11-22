@@ -60,13 +60,10 @@ struct InspectorView: View {
 
 
             Section {
-                // With a cover, the collection is a pill on it instead.
-                if !hasCover {
-                    LabeledContent {
-                        collectionMenu
-                    } label: {
-                        Label("Collection", systemImage: "folder")
-                    }
+                LabeledContent {
+                    collectionMenu
+                } label: {
+                    Label("Collection", systemImage: "folder")
                 }
                 HStack(alignment: .firstTextBaseline) {
                     Label("Tags", systemImage: "number")
@@ -154,7 +151,7 @@ struct InspectorView: View {
             .overlay(alignment: .bottom) {
                 GlassEffectContainer {
                     HStack(alignment: .center) {
-                        floatingCollectionMenu
+                        floatingDomainPill
                         Spacer(minLength: 8)
                         floatingFavoriteButton
                     }
@@ -169,32 +166,27 @@ struct InspectorView: View {
 
     private static let coverMaxHeight: CGFloat = 240
 
-    /// The collection as a glass pill: the same menu as the form row, moving the raindrop as
-    /// soon as one is picked.
-    private var floatingCollectionMenu: some View {
-        Menu {
-            CollectionMenuItems(isDisabled: { $0 == shown.collectionID }) { id in
-                change(RaindropChanges(collectionID: id))
-            }
-        } label: {
-            Label(store.collectionTitle(for: shown.collectionID), systemImage: collectionSymbol)
+    /// The site's icon and domain as a glass pill, opening the bookmark in the browser.
+    @ViewBuilder
+    private var floatingDomainPill: some View {
+        if let url = raindrop.url {
+            Link(destination: url) {
+                Label {
+                    Text(raindrop.domain)
+                } icon: {
+                    Favicon(domain: raindrop.domain, fallbackSymbol: raindrop.type.systemImage)
+                        .frame(width: 16, height: 16)
+                }
                 .lineLimit(1)
                 .padding(.horizontal, 12)
                 .frame(height: 24)
                 .contentShape(.capsule)
+            }
+            .buttonStyle(.plain)
+            .glassEffect(.regular.interactive(), in: .capsule)
+            .fixedSize()
+            .help("Open \(raindrop.domain) in Your Browser")
         }
-        .menuStyle(.button)
-        .buttonStyle(.plain)
-        .menuIndicator(.visible)
-        // A menu ignores the glass button style and draws nearly clear, so the glass is explicit.
-        .glassEffect(.regular.interactive(), in: .capsule)
-        .fixedSize()
-        .help("Move to Another Collection")
-        .disabled(!store.canWrite)
-    }
-
-    private var collectionSymbol: String {
-        shown.collectionID == SystemCollectionID.unsorted ? "tray" : "folder"
     }
 
     private var favoriteBinding: Binding<Bool> {
