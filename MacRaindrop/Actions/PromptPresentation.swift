@@ -1,7 +1,7 @@
 import SwiftUI
 
 extension View {
-    /// Presents what `prompts` asks for (the edit and tags sheets, the delete confirmation)
+    /// Presents what `prompts` asks for (the tags sheet, the delete confirmation)
     /// and the store's write failures.
     func presentsPrompts(_ prompts: ActionPrompts) -> some View {
         modifier(PromptPresentation(prompts: prompts))
@@ -14,9 +14,6 @@ private struct PromptPresentation: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .sheet(item: $prompts.editing) { raindrop in
-                EditRaindropSheet(raindrop: raindrop)
-            }
             .sheet(item: $prompts.tagging) { request in
                 AddTagsSheet(request: request)
             }

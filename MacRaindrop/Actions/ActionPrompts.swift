@@ -4,7 +4,8 @@ import Observation
 /// Actions that need to ask something first. Each window has one; `ContentView` presents them.
 @Observable
 final class ActionPrompts {
-    var editing: Raindrop?
+    /// A bookmark to edit: the window selects it, shows the inspector, and focuses its title.
+    var editRequest: Raindrop.ID?
     var tagging: TagRequest?
     var deletion: DeletionRequest?
 

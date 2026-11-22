@@ -21,8 +21,8 @@ struct RaindropActions: View {
             .shortcut("o", if: showsShortcuts)
             .disabled(urls.isEmpty)
 
-        Button("Edit…", systemImage: "pencil") {
-            if let raindrop = raindrops.first { prompts.editing = raindrop }
+        Button("Edit", systemImage: "pencil") {
+            if let raindrop = raindrops.first { prompts.editRequest = raindrop.id }
         }
         .shortcut("e", if: showsShortcuts)
         .disabled(raindrops.count != 1 || !canModify)

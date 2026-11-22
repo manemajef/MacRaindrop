@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The window's toolbar, the same in both modes: ‹ › | view, sort | edit, inspector. Items stay
+/// The window's toolbar, the same in both modes: ‹ › | view, sort | inspector. Items stay
 /// put and are disabled when they don't apply, rather than appearing and disappearing.
 ///
 /// Adjacent `ToolbarItem`s share one glass capsule, so a `ToolbarSpacer` sets apart the groups
@@ -9,14 +9,13 @@ struct ContentToolbar: ToolbarContent {
     let navigation: NavigationModel
     @Binding var mode: CollectionMode
     @Binding var sort: RaindropSort
-    let selection: [Raindrop]
     @Binding var isInspectorPresented: Bool
 
     var body: some ToolbarContent {
         HistoryToolbar(navigation: navigation)
         ViewOptionsToolbar(mode: $mode, sort: $sort)
         ToolbarSpacer(.fixed)
-        EditAndInspectorToolbar(selection: selection, isInspectorPresented: $isInspectorPresented)
+        InspectorToolbar(isInspectorPresented: $isInspectorPresented)
     }
 }
 
@@ -64,21 +63,11 @@ private struct ViewOptionsToolbar: ToolbarContent {
     }
 }
 
-/// Edit for the selected bookmark and the inspector toggle, which share a capsule.
-private struct EditAndInspectorToolbar: ToolbarContent {
-    @Environment(LibraryStore.self) private var store
-    @Environment(ActionPrompts.self) private var prompts
-    let selection: [Raindrop]
+/// The inspector toggle. Bookmarks are edited in the inspector, so this is also how to edit.
+private struct InspectorToolbar: ToolbarContent {
     @Binding var isInspectorPresented: Bool
 
     var body: some ToolbarContent {
-        ToolbarItem {
-            Button("Edit", systemImage: "pencil") {
-                prompts.editing = selection.first
-            }
-            .disabled(selection.count != 1 || !store.canModify(selection.map(\.id)))
-            .help(store.isOnline ? "Edit the selected bookmark" : "You're offline")
-        }
         ToolbarItem {
             Toggle(isOn: $isInspectorPresented) {
                 Label("Inspector", systemImage: "info")

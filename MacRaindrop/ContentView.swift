@@ -58,6 +58,12 @@ struct ContentView: View {
             // Until the app has a delegate, the first window sets up Quick Search.
             .task { QuickSearchController.install(session: session) }
             .onChange(of: session.revealRequest) { takeRevealRequest() }
+            // Editing happens in the inspector, so Edit selects the bookmark and shows it.
+            .onChange(of: prompts.editRequest) { _, id in
+                guard let id else { return }
+                navigation.selection = [id]
+                showInspector = true
+            }
             .onChange(of: appearsActive) { takeRevealRequest() }
     }
 
@@ -106,8 +112,7 @@ struct ContentView: View {
     }
 
     private var toolbar: some ToolbarContent {
-        ContentToolbar(navigation: navigation, mode: $mode, sort: $sort,
-                       selection: selectedRaindrops, isInspectorPresented: $showInspector)
+        ContentToolbar(navigation: navigation, mode: $mode, sort: $sort, isInspectorPresented: $showInspector)
     }
 
     /// Gets the model itself rather than bindings made here: a binding built from closures
@@ -185,6 +190,7 @@ struct ContentView: View {
     private var inspector: some View {
         if let selectedRaindrop {
             InspectorView(raindrop: selectedRaindrop)
+                .id(selectedRaindrop.id)
         } else {
             noSelection
         }
