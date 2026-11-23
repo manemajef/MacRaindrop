@@ -17,8 +17,6 @@ struct InspectorView: View {
     let raindrop: Raindrop
 
     @FocusState private var focus: InspectorFieldID?
-    /// Whether the URL row shows the full URL in a field, rather than the site's domain.
-    @State private var isEditingLink = false
 
     private var edits: InspectorEdits { .edits(for: raindrop.id) }
     /// What's on screen: the server's copy with any unsaved edits on top.
@@ -54,41 +52,33 @@ struct InspectorView: View {
                     .lineLimit(1...12)
                     .fullWidthField()
             }
-//                } header: {
-//                    if raindrop.coverURL != nil {
-//                        CoverImage(url: raindrop.coverURL, kind: raindrop.type, contentMode: .fit)
-//                            .frame(maxWidth: .infinity, maxHeight: 180)
-//                            .clipShape(.rect(cornerRadius: 8))
-//                            .padding(.bottom, 4)
-//                    }
-//                }
-//
-
-
-//            Section("Tags") {
-//                TagTokenField(tags: shown.tags,  knownTags: store.tags.map(\.name)){
-//                    change(RaindropChanges(tags: $0))
-//                }
-//            }
-            Section(header: Label("Tags", systemImage: "tag")) {
+            Section(
+//                "Tags & URL"
+//                header: Label("Tags", systemImage: "tag")
+            ) {
+//                collectionPickerRow
                 HStack(alignment: .firstTextBaseline) {
-//                    Label("Tags", systemImage: "number")
-                    TagTokenField(tags: shown.tags, knownTags: store.tags.map(\.name)) {
+                    Label("Tags:", systemImage: "tag")
+                        .foregroundStyle(.secondary)
+                    
+                    TagEditor(tags: shown.tags, knownTags: store.tags.map(\.name)) {
                         change(RaindropChanges(tags: $0))
                     }
                 }
+
+                CommitTextField(
+                    value: shown.link, prompt: "https://", field: .link, focus: $focus
+                ) { link in
+                    let link = link.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !link.isEmpty { change(RaindropChanges(link: link)) }
+                } label: {
+                    Label("URL:", systemImage: "link")
+                        .foregroundStyle(.secondary)
+                }
+                .lineLimit(1)
+                .truncationMode(.middle)
             }
 
-            Section(header: Label("URL", systemImage: "link")) {
-                linkRow
-            }
-//            Section("Notes") {
-//                CommitTextField(
-//                    value: shown.note, prompt: "Note", axis: .vertical, field: .note, focus: $focus
-//                ) { change(RaindropChanges(note: $0)) }
-//                    .lineLimit(0...12)
-//                    .fullWidthField()
-//            }
 
             if !raindrop.highlights.isEmpty {
                 Section("Highlights") {
@@ -132,6 +122,7 @@ struct InspectorView: View {
             GlassEffectContainer {
                 HStack(alignment: .center) {
                     floatingCollectionMenu
+//                    floatingSiteLabel
                     Spacer(minLength: 8)
                     floatingFavoriteButton
                 }
@@ -185,49 +176,21 @@ struct InspectorView: View {
 
     private static let coverMaxHeight: CGFloat = 350
 
-    /// The site's favicon and domain. A click swaps in a field with the full URL to edit, which
-    /// goes back to the domain once it's committed or left.
+    /// The site as a glass pill, opening the bookmark in the browser. An alternative to
+    /// `floatingCollectionMenu` in the cover's bottom-left corner.
     @ViewBuilder
-    private var linkRow: some View {
-        if isEditingLink {
-            CommitTextField(
-                value: shown.link, prompt: "https://", field: .link, focus: $focus
-            ) { link in
-                let link = link.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !link.isEmpty { change(RaindropChanges(link: link)) }
-            } label: {
-                Label("URL", systemImage: "link")
-            }
-            .lineLimit(1)
-            .onSubmit { isEditingLink = false }
-            .onChange(of: focus) { _, focus in
-                if focus != .link { isEditingLink = false }
-            }
-        } else {
-            Button {
-                isEditingLink = true
-                // The field appears on the next update; focus it once it's there.
-                Task {
-                    try? await Task.sleep(for: .milliseconds(30))
-                    focus = .link
-                }
-            } label: {
-                LabeledContent {
-                    HStack(spacing: 6) {
-                        Favicon(domain: shown.domain, fallbackSymbol: raindrop.type.systemImage)
-                            .frame(width: 16, height: 16)
-                        Text(shown.domain.isEmpty ? shown.link : shown.domain)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
-                } label: {
-                    Label("URL", systemImage: "link")
-                }
-                .contentShape(.rect)
+    private var floatingSiteLabel: some View {
+        if let url = raindrop.url {
+            Link(destination: url) {
+                SiteLabel(raindrop)
+                    .padding(.horizontal, 12)
+                    .frame(height: 24)
+                    .contentShape(.capsule)
             }
             .buttonStyle(.plain)
-            .help(shown.link)
-            .accessibilityHint("Edit the URL")
+            .glassEffect(.regular.interactive(), in: .capsule)
+            .fixedSize()
+            .help("Open \(raindrop.domain) in Your Browser")
         }
     }
 
@@ -281,6 +244,24 @@ struct InspectorView: View {
         .fixedSize()
         .help("Move to Another Collection")
         .disabled(!store.canWrite)
+    }
+
+    /// The collection as a form row with a standard pop-up, for when the cover shows
+    /// `floatingSiteLabel` instead of the collection pill.
+    private var collectionPickerRow: some View {
+        LabeledContent {
+            Menu {
+                CollectionMenuItems(isDisabled: { $0 == shown.collectionID }) { id in
+                    change(RaindropChanges(collectionID: id))
+                }
+            } label: {
+                Text(store.collectionTitle(for: shown.collectionID))
+            }
+            .fixedSize()
+        } label: {
+            Label("Collection:", systemImage: collectionSymbol)
+                .foregroundStyle(.secondary)
+        }
     }
 
     private var collectionSymbol: String {
