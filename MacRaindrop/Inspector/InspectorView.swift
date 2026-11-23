@@ -10,6 +10,7 @@ import SwiftUI
 /// until the server confirms it.
 ///
 /// Give it `.id(raindrop.id)`, so another bookmark starts with fresh fields.
+
 struct InspectorView: View {
     @Environment(LibraryStore.self) private var store
     @Environment(ActionPrompts.self) private var prompts
@@ -52,33 +53,18 @@ struct InspectorView: View {
                     .lineLimit(1...12)
                     .fullWidthField()
             }
-            Section(
-//                "Tags & URL"
-//                header: Label("Tags", systemImage: "tag")
-            ) {
-//                collectionPickerRow
-                HStack(alignment: .firstTextBaseline) {
-                    Label("Tags:", systemImage: "tag")
-                        .foregroundStyle(.secondary)
-                    
-                    TagEditor(tags: shown.tags, knownTags: store.tags.map(\.name)) {
-                        change(RaindropChanges(tags: $0))
-                    }
+            // Every row starts with an icon, so the icons make one column down the left even
+            // though Tags runs full width while Collection and URL are label and value.
+            Section {
+                collectionPickerRow
+                TagEditor(tags: shown.tags, knownTags: store.tags.map(\.name)) {
+                    change(RaindropChanges(tags: $0))
                 }
-
-                CommitTextField(
-                    value: shown.link, prompt: "https://", field: .link, focus: $focus
-                ) { link in
-                    let link = link.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !link.isEmpty { change(RaindropChanges(link: link)) }
-                } label: {
-                    Label("URL:", systemImage: "link")
-                        .foregroundStyle(.secondary)
-                }
-                .lineLimit(1)
-                .truncationMode(.middle)
             }
 
+            Section {
+                urlRow
+            }
 
             if !raindrop.highlights.isEmpty {
                 Section("Highlights") {
@@ -121,8 +107,8 @@ struct InspectorView: View {
         .overlay(alignment: .bottom) {
             GlassEffectContainer {
                 HStack(alignment: .center) {
-                    floatingCollectionMenu
-//                    floatingSiteLabel
+//                    floatingCollectionMenu
+                    floatingSiteLabel
                     Spacer(minLength: 8)
                     floatingFavoriteButton
                 }
@@ -246,22 +232,115 @@ struct InspectorView: View {
         .disabled(!store.canWrite)
     }
 
-    /// The collection as a form row with a standard pop-up, for when the cover shows
-    /// `floatingSiteLabel` instead of the collection pill.
+    /// The collection as a standard Mac form row, like Reminders' List row: the label on the
+    /// left, the current collection in a pop-up menu on the right.
     private var collectionPickerRow: some View {
         LabeledContent {
-            Menu {
-                CollectionMenuItems(isDisabled: { $0 == shown.collectionID }) { id in
-                    change(RaindropChanges(collectionID: id))
-                }
-            } label: {
-                Text(store.collectionTitle(for: shown.collectionID))
-            }
-            .fixedSize()
+            // Swap for `collectionPill` to try the pill.
+//            collectionMenu
+            collectionPill
         } label: {
-            Label("Collection:", systemImage: collectionSymbol)
-                .foregroundStyle(.secondary)
+            rowLabel("Collection", systemImage: collectionSymbol)
         }
+    }
+
+    /// The standard pop-up menu with the current collection.
+    private var collectionMenu: some View {
+        Menu {
+            CollectionMenuItems(isDisabled: { $0 == shown.collectionID }) { id in
+                change(RaindropChanges(collectionID: id))
+            }
+        } label: {
+            Text(store.collectionTitle(for: shown.collectionID))
+        }
+        .fixedSize()
+        .menuStyle(.button)
+    }
+
+    /// The same menu as a pill in the system's neutral button fill, untinted, with tight padding
+    /// so the row stays as tall as the others. Not used; kept to try in place of
+    /// `collectionMenu`.
+    private var collectionPill: some View {
+        Menu {
+            CollectionMenuItems(isDisabled: { $0 == shown.collectionID }) { id in
+                change(RaindropChanges(collectionID: id))
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(store.collectionTitle(for: shown.collectionID))
+                    .lineLimit(1)
+                    .foregroundStyle(.primary)
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 2)
+            // Drawn here: a menu in a form row ignores the bordered button style.
+            .background(.fill.tertiary, in: .capsule)
+//            .glassEffect(.regular)
+            .contentShape(.capsule)
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("Move to Another Collection")
+    }
+
+    /// A row's label as Reminders draws them: a gray icon in a fixed-width column, so the icons
+    /// of every row line up, then the title.
+    private func rowLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            // Primary even when the row's value is styled otherwise, like the URL's gray.
+            Text(title).foregroundStyle(Color(nsColor: .labelColor))
+        } icon: {
+            InspectorRowIcon(systemImage: systemImage)
+        }
+    }
+    
+    private var collectionPickerButton: some View {
+        Menu {
+            CollectionMenuItems(isDisabled: { $0 == shown.collectionID }) { id in
+                change(RaindropChanges(collectionID: id))
+            }
+        } label: {
+            HStack {
+                Label(store.collectionTitle(for: shown.collectionID), systemImage: "folder.fill")
+                Spacer()
+
+                // Up and down, as on a pop-up button: this opens a menu, while a forward chevron
+                // reads as going to another view, like the Tags row's picker.
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            // A spacer isn't clickable on its own, so the middle of the row did nothing.
+            .contentShape(.rect)
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+    }
+    
+    private var urlRow: some View {
+        CommitTextField(
+            value: shown.link, prompt: "https://", axis: .vertical, field: .link, focus: $focus,
+            displayedValue: { $0.withoutScheme }
+        ) { link in
+            let link = link.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !link.isEmpty { change(RaindropChanges(link: link)) }
+        } label: {
+            rowLabel("URL", systemImage: "link")
+        }
+        // Gray until clicked, like an address bar. A concrete color, since the field editor
+        // ignores hierarchical styles like `.secondary`.
+        .foregroundStyle(Color(nsColor: focus == .link ? .labelColor : .secondaryLabelColor))
+        // One line until clicked, then room to read and edit the whole URL. No truncation mode:
+        // any truncation makes the field single-line, so it couldn't grow.
+        .lineLimit(focus == .link ? 1...6 : 1...1)
+        // Leading either way, so clicking in changes as little as possible besides the scheme.
+        .multilineTextAlignment(.leading)
+        .animation(.snappy, value: focus == .link)
     }
 
     private var collectionSymbol: String {
