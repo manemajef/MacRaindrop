@@ -47,6 +47,12 @@ struct InspectorView: View {
                     .foregroundStyle(Color(nsColor: .secondaryLabelColor))
                     .lineLimit(1...10)
                     .fullWidthField()
+                CommitTextField(
+                    value: shown.note, prompt: "Add notes", axis: .vertical, field: .note, focus: $focus
+                ) { change(RaindropChanges(note: $0)) }
+                    .foregroundStyle(Color(nsColor: raindrop.note.isEmpty ? .tertiaryLabelColor: .secondaryLabelColor))
+                    .lineLimit(1...12)
+                    .fullWidthField()
             }
 //                } header: {
 //                    if raindrop.coverURL != nil {
@@ -59,26 +65,30 @@ struct InspectorView: View {
 //
 
 
-
-            Section {
+//            Section("Tags") {
+//                TagTokenField(tags: shown.tags,  knownTags: store.tags.map(\.name)){
+//                    change(RaindropChanges(tags: $0))
+//                }
+//            }
+            Section(header: Label("Tags", systemImage: "tag")) {
                 HStack(alignment: .firstTextBaseline) {
-                    Label("Tags", systemImage: "number")
+//                    Label("Tags", systemImage: "number")
                     TagTokenField(tags: shown.tags, knownTags: store.tags.map(\.name)) {
                         change(RaindropChanges(tags: $0))
                     }
                 }
             }
 
-            Section {
+            Section(header: Label("URL", systemImage: "link")) {
                 linkRow
             }
-            Section("Notes") {
-                CommitTextField(
-                    value: shown.note, prompt: "Note", axis: .vertical, field: .note, focus: $focus
-                ) { change(RaindropChanges(note: $0)) }
-                    .lineLimit(3...12)
-                    .fullWidthField()
-            }
+//            Section("Notes") {
+//                CommitTextField(
+//                    value: shown.note, prompt: "Note", axis: .vertical, field: .note, focus: $focus
+//                ) { change(RaindropChanges(note: $0)) }
+//                    .lineLimit(0...12)
+//                    .fullWidthField()
+//            }
 
             if !raindrop.highlights.isEmpty {
                 Section("Highlights") {
@@ -90,7 +100,8 @@ struct InspectorView: View {
                 information
             }
         }
-        .formStyle(.grouped)
+//        .formStyle(.)
+        
         // Read-only while offline; fields still show their values.
         .disabled(!store.canWrite)
         // The cover stays put while the form scrolls under it, softened at its edge.
@@ -172,7 +183,7 @@ struct InspectorView: View {
         CoverImage(url: raindrop.coverURL, kind: raindrop.type, fillsWidthUpTo: Self.coverMaxHeight)
     }
 
-    private static let coverMaxHeight: CGFloat = 240
+    private static let coverMaxHeight: CGFloat = 350
 
     /// The site's favicon and domain. A click swaps in a field with the full URL to edit, which
     /// goes back to the domain once it's committed or left.
@@ -351,11 +362,18 @@ private struct HighlightView: View {
     }
 }
 
-#Preview("Inspector") {
+#Preview("Inspector", traits: .fixedLayout(width: 350, height: 700)) {
+    @Previewable @State var showInspector = true
+    
     let store = LibraryStore.preview
-    let raindrop = store.raindrops.first { !$0.highlights.isEmpty } ?? store.raindrops[0]
-    InspectorView(raindrop: raindrop)
-        .frame(width: 300, height: 700)
-        .previewEnvironment(store)
-        .environment(ActionPrompts())
+    let raindrop = store.raindrops.first { !$0.highlights.isEmpty }
+    ?? store.raindrops[0]
+    
+    Color.clear
+        .inspector(isPresented: $showInspector) {
+            InspectorView(raindrop: raindrop)
+                .inspectorColumnWidth(325)
+                .previewEnvironment(store)
+                .environment(ActionPrompts())
+        }
 }
