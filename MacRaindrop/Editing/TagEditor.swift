@@ -98,7 +98,8 @@ private struct TagChip: View {
         .padding(.trailing, 6)
         .padding(.vertical, 2)
         .glassEffect(.regular.tint(.accentColor))
-        .background(.tint.opacity(0.15), in: .capsule)
+        .foregroundStyle(.white)
+//        .background(.tint.opacity(0.15), in: .capsule)
         .transition(.scale(scale: 0.8).combined(with: .opacity))
     }
 }

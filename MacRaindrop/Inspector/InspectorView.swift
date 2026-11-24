@@ -192,7 +192,7 @@ struct InspectorView: View {
             Image(systemName: shown.important ? "heart.fill" : "heart")
                 .foregroundStyle(shown.important ? AnyShapeStyle(.pink) : AnyShapeStyle(.primary))
                 .contentTransition(.symbolEffect(.replace))
-                .frame(width: 32, height: 28)
+                .frame(width: 26, height: 26)
                 .contentShape(.circle)
         }
         .buttonStyle(.plain)
@@ -267,6 +267,7 @@ struct InspectorView: View {
             }
         } label: {
             HStack(spacing: 4) {
+                Image(systemName: "folder")
                 Text(store.collectionTitle(for: shown.collectionID))
                     .lineLimit(1)
                     .foregroundStyle(.primary)
@@ -275,11 +276,11 @@ struct InspectorView: View {
                     .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 9)
-            .padding(.vertical, 2)
+            .padding(.vertical, 4)
             // Drawn here: a menu in a form row ignores the bordered button style.
-            .background(.fill.tertiary, in: .capsule)
-//            .glassEffect(.regular)
-            .contentShape(.capsule)
+//            .background(.fill.tertiary, in: .capsule)
+            .glassEffect(.regular)
+//            .contentShape(.capsule)
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
