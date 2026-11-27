@@ -27,7 +27,10 @@ final class LibraryStore {
 
     private(set) var phase: Phase = .idle
     private(set) var collections: [RaindropCollection] = [] {
-        didSet { libraryChanged() }
+        didSet {
+            collectionIndexByID = Dictionary(collections.enumerated().map { ($1.id, $0) }) { first, _ in first }
+            libraryChanged()
+        }
     }
     private(set) var raindrops: [Raindrop] = [] {
         didSet { rebuildDerivedState() }
@@ -61,6 +64,9 @@ final class LibraryStore {
     @ObservationIgnored private var lastOperation: Task<Void, Never>?
     /// Where each raindrop is in `raindrops`, for `raindrop(id:)`.
     @ObservationIgnored private(set) var indexByID: [Raindrop.ID: Int] = [:]
+    /// Where each collection is in `collections`, for `collection(id:)`. Views look up a
+    /// collection per card and row, so it shouldn't mean a scan of every collection.
+    @ObservationIgnored private(set) var collectionIndexByID: [RaindropCollection.ID: Int] = [:]
     /// Filtered and sorted lists already worked out, until `raindrops` changes. Views ask for
     /// the same list several times per update, and on every selection change.
     @ObservationIgnored var queryResults: [RaindropQuery: [Raindrop]] = [:]

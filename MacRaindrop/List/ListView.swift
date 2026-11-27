@@ -6,12 +6,15 @@ struct ListView: View {
     @Environment(\.openURL) private var openURL
     let raindrops: [Raindrop]
     @Binding var selection: Set<Raindrop.ID>
+    /// Whether rows say which collection they're in. See `SidebarItem.showsCollectionLabel`.
+    var showsCollectionLabel = true
 
     private var selected: [Raindrop] { raindrops.filter { selection.contains($0.id) } }
 
     var body: some View {
         List(raindrops, selection: $selection) { raindrop in
-            RaindropRow(raindrop: raindrop, isPending: store.pendingIDs.contains(raindrop.id))
+            RaindropRow(raindrop: raindrop, isPending: store.pendingIDs.contains(raindrop.id),
+                        collectionTitle: showsCollectionLabel ? store.collectionTitle(for: raindrop.collectionID) : nil)
                 .draggable(containerItemID: raindrop.id)
         }
         .contextMenu(forSelectionType: Raindrop.ID.self) { ids in

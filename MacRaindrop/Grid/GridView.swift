@@ -101,7 +101,8 @@ struct GridView: View {
 
     private func card(_ raindrop: Raindrop) -> some View {
         RaindropCard(raindrop: raindrop, isSelected: selection.contains(raindrop.id),
-                     isPending: store.pendingIDs.contains(raindrop.id), showsCollectionLabel: showsCollectionLabel)
+                     isPending: store.pendingIDs.contains(raindrop.id),
+                     collectionTitle: showsCollectionLabel ? store.collectionTitle(for: raindrop.collectionID) : nil)
             // Shorter cards stretch to their row's height.
             .frame(maxHeight: .infinity, alignment: .top)
             .onTapGesture { click(raindrop.id) }

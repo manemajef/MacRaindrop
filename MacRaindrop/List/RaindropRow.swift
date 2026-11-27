@@ -5,6 +5,9 @@ struct RaindropRow: View {
     let raindrop: Raindrop
     /// A write to this raindrop is waiting for the server.
     var isPending = false
+    /// The collection the raindrop is in, shown in place of the date. Nil where every row is in
+    /// the same collection, so it would say nothing.
+    var collectionTitle: String?
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -45,7 +48,11 @@ struct RaindropRow: View {
                         .labelStyle(.iconOnly)
                     Text(raindrop.domain)
                     Text("·")
-                    Text(raindrop.created, format: .relativeNamed)
+                    if let collectionTitle {
+                        CollectionLabel(title: collectionTitle, raindrop: raindrop)
+                    } else {
+                        Text(raindrop.created, format: .relativeNamed)
+                    }
                     if raindrop.broken {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(.orange)
@@ -80,6 +87,7 @@ struct RaindropRow: View {
         RaindropRow(raindrop: bare)
         RaindropRow(raindrop: favorite)
         RaindropRow(raindrop: broken)
+        RaindropRow(raindrop: raindrop, collectionTitle: "Reading")
         RaindropRow(raindrop: raindrop, isPending: true)
     }
     .frame(width: 380, height: 560)

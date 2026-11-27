@@ -6,8 +6,9 @@ struct RaindropCard: View {
     let isSelected: Bool
     /// A write to this raindrop is waiting for the server.
     var isPending = false
-    /// Whether to say which collection the raindrop is in. Not drawn yet.
-    var showsCollectionLabel = true
+    /// The collection the raindrop is in, shown in place of the date. Nil where every card is in
+    /// the same collection, so it would say nothing.
+    var collectionTitle: String?
     static let coverHeight: CGFloat = 150
     static let titleLines = 3
     static let excerptLines = 3
@@ -101,7 +102,11 @@ struct RaindropCard: View {
                     .foregroundStyle(.pink)
                     .accessibilityLabel("Favorite")
             }
-            Text(raindrop.created, format: .shortDay)
+            if let collectionTitle {
+                CollectionLabel(title: collectionTitle, raindrop: raindrop)
+            } else {
+                Text(raindrop.created, format: .shortDay)
+            }
         }
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -123,7 +128,7 @@ struct RaindropCard: View {
         GridRow {
             RaindropCard(raindrop: all[3], isSelected: true)
             RaindropCard(raindrop: all[4], isSelected: false, isPending: true)
-            RaindropCard(raindrop: all[5], isSelected: false)
+            RaindropCard(raindrop: all[5], isSelected: false, collectionTitle: "Reading")
         }
     }
     .frame(width: 3 * 200 + 2 * GridMetrics.columnSpacing)

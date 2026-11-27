@@ -47,7 +47,8 @@ struct BookmarksView: View {
         Group {
             switch mode {
             case .list:
-                ListView(raindrops: raindrops, selection: $navigation.selection)
+                ListView(raindrops: raindrops, selection: $navigation.selection,
+                         showsCollectionLabel: location.showsCollectionLabel)
             case .cards:
                 GridView(raindrops: raindrops, selection: $navigation.selection, collections: collections,
                          showsCollectionLabel: location.showsCollectionLabel) { id in

@@ -4,7 +4,8 @@ extension LibraryStore {
     // MARK: Lookups
 
     func collection(id: RaindropCollection.ID) -> RaindropCollection? {
-        collections.first { $0.id == id }
+        // Reads `collections` itself, so the caller observes it.
+        collectionIndexByID[id].map { collections[$0] }
     }
 
     func raindrop(id: Raindrop.ID) -> Raindrop? {
