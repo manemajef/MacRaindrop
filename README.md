@@ -7,6 +7,8 @@ A native SwiftUI client for [Raindrop.io](https://raindrop.io) bookmarks on macO
 ## Features
 
 - Sidebar with All, Unsorted, Favorites, Trash, nested collections and tags
+- Raindrop's Filters in the sidebar (Highlights, Articles, Video, Images, Documents, Files, Broken Links, Duplicates), hidden when empty and turned off from View › Show Filters in Sidebar
+- Outside a collection, cards and rows show which collection each bookmark is in
 - Two modes: a cards grid, or a list with the bookmarked page in a built-in web view
 - Cards select like Finder icons (click, ⌘/⇧-click, rubber band, arrow keys) and drag out as links; double-click opens a bookmark in your browser
 - Searchable and sortable in both modes, with details (note, tags, highlights, info) in an inspector
@@ -36,6 +38,14 @@ Closing the last window keeps the app running in the background without a Dock i
 ## Known issue
 
 Running under Xcode's debugger can crash at launch with *"The window has been marked as needing another Update Constraints in Window pass…"*. The cause is a `NavigationSplitView` nested inside another one, which the layout uses to hide the list together with the sidebar. A minimal app containing only that nesting crashes the same way on the current macOS beta. Launching the built app normally works.
+
+## Roadmap
+
+- **Filters settings.** A Settings pane to show or hide each filter, reorder them, or turn the Filters section off entirely.
+- **Smart lists.** Your own filters, built from rules (name contains, URL contains, kind, tag, and so on), with your own name and icon, listed beside Raindrop's filters. They live only in this app: Raindrop has no place for them, so they won't appear in its web or iOS apps.
+- **Quick add.** Make the sidebar's + button work (adding a link starts from the one on the clipboard), and add a quick-add button to the toolbar.
+- **A more useful toolbar.**
+- **Better-looking cards.** They work, but they don't look good yet. Redesign them into something worth looking at.
 
 ## Layout
 
