@@ -7,7 +7,7 @@ import SwiftUI
 /// that should stand apart.
 struct ContentToolbar: ToolbarContent {
     let navigation: NavigationModel
-    @Binding var mode: CollectionMode
+    @Binding var mode: ViewMode
     @Binding var sort: RaindropSort
     @Binding var isInspectorPresented: Bool
 
@@ -38,13 +38,13 @@ private struct HistoryToolbar: ToolbarContent {
 
 /// List or cards, and the sort order.
 private struct ViewOptionsToolbar: ToolbarContent {
-    @Binding var mode: CollectionMode
+    @Binding var mode: ViewMode
     @Binding var sort: RaindropSort
 
     var body: some ToolbarContent {
         ToolbarItem {
             Picker("View", selection: $mode) {
-                ForEach(CollectionMode.allCases) { mode in
+                ForEach(ViewMode.allCases) { mode in
                     Label(mode.label, systemImage: mode.systemImage).tag(mode)
                 }
             }

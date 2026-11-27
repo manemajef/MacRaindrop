@@ -39,6 +39,9 @@ final class SyncState {
     /// The server's `changedBookmarksDate` as of the last successful sync.
     var changedBookmarksDate: Date?
     var lastSyncedAt: Date?
+    /// The `LibraryCache.payloadVersion` the cached raindrops were written with. Optional, so
+    /// adding it needed no migration; nil for caches from before it existed.
+    var payloadVersion: Int?
 
     init() {}
 }
@@ -53,6 +56,12 @@ final class LibraryCache {
     private let decoder = JSONDecoder.raindrop
 
     static let schema = Schema([CachedRaindrop.self, CachedCollection.self, SyncState.self])
+
+    /// Bump when `Raindrop` starts decoding a field it used to drop. Payloads are re-encoded
+    /// raindrops, so older ones lack it, and an incremental sync only rewrites changed ones:
+    /// a cache written with another version gets a full refetch.
+    /// 1: `file`, for the Files filter.
+    static let payloadVersion = 1
 
     /// Opens (or creates) `Application Support/<identifier>.store`, falling back to memory if that fails.
     init(identifier: String, inMemory: Bool = false) {

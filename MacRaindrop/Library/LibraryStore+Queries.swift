@@ -19,6 +19,7 @@ extension LibraryStore {
         case .trash: "Trash"
         case .collection(let id): collection(id: id)?.title ?? "Collection"
         case .tag(let tag): "#\(tag)"
+        case .filter(let filter): filter.title
         }
     }
 
@@ -62,40 +63,42 @@ extension LibraryStore {
         return ancestors
     }
 
+    /// The raindrops `item` shows, narrowed by the search field's `text`.
+    func raindrops(in item: SidebarItem, matching text: String = "", sortedBy sort: RaindropSort = .newest) -> [Raindrop] {
+        raindrops(matching: item.query.searching(text), sortedBy: sort)
+    }
+
     /// Remembered until `raindrops` changes, so asking again is free.
-    func raindrops(in item: SidebarItem, matching query: String = "", sortedBy sort: RaindropSort = .newest) -> [Raindrop] {
+    func raindrops(matching query: LibraryQuery, sortedBy sort: RaindropSort = .newest) -> [Raindrop] {
         // Read `raindrops` even when the answer is remembered, so the caller still observes it.
         let all = raindrops
-        let key = RaindropQuery(item: item, text: query, sort: sort)
+        let key = RaindropQuery(query: query, sort: sort)
         if let remembered = queryResults[key] { return remembered }
 
-        let scoped = all.filter { raindrop in
-            let inTrash = raindrop.isInTrash
-            switch item {
-            case .trash: return inTrash
-            case _ where inTrash: return false
-            case .all: return true
-            case .unsorted: return raindrop.collectionID == SystemCollectionID.unsorted
-            case .important: return raindrop.important
-            case .collection(let id): return raindrop.collectionID == id
-            case .tag(let tag): return raindrop.tags.contains(tag)
-            }
-        }
-        let query = query.trimmingCharacters(in: .whitespaces)
-        let matched = query.isEmpty ? scoped : scoped.filter { raindrop in
-            [raindrop.title, raindrop.excerpt, raindrop.note, raindrop.domain]
-                .contains { $0.localizedStandardContains(query) }
-                || raindrop.tags.contains { $0.localizedStandardContains(query) }
-        }
-        let result = matched.sorted(by: sort.areInIncreasingOrder)
+        let context = queryContext
+        let result = all.filter { query.matches($0, in: context) }.sorted(by: sort.areInIncreasingOrder)
         // Each search keystroke is a new query; don't keep them all.
         if queryResults.count >= 16 { queryResults.removeAll() }
         queryResults[key] = result
         return result
     }
 
+    /// The collections `item` shows along with its raindrops: a collection's subcollections.
+    /// Nothing else shows collections.
+    func collections(in item: SidebarItem) -> [RaindropCollection] {
+        guard case .collection(let id) = item else { return [] }
+        return subcollections(of: id)
+    }
+
+    /// How many raindrops `item` shows, without a search. Remembered until `raindrops` changes.
     func count(for item: SidebarItem) -> Int {
-        counts[item] ?? 0
+        let all = raindrops
+        let query = item.query
+        if let remembered = countResults[query] { return remembered }
+        let context = queryContext
+        let count = all.count { query.matches($0, in: context) }
+        countResults[query] = count
+        return count
     }
 
     func canModify(_ ids: some Sequence<Raindrop.ID>) -> Bool {

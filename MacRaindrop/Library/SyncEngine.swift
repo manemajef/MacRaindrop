@@ -45,14 +45,16 @@ final class SyncEngine {
             try cache.replaceCollections(collections)
 
             let kind: SyncReport.Kind
-            if let cursor = state.changedBookmarksDate, cursor == stats.changedBookmarksDate {
+            let cursor = state.payloadVersion == LibraryCache.payloadVersion ? state.changedBookmarksDate : nil
+            if let cursor, cursor == stats.changedBookmarksDate {
                 kind = .upToDate
-            } else if let cursor = state.changedBookmarksDate {
+            } else if let cursor {
                 kind = try await incrementalSync(since: cursor, stats: stats)
             } else {
                 kind = try await fullSync()
             }
 
+            state.payloadVersion = LibraryCache.payloadVersion
             state.changedBookmarksDate = stats.changedBookmarksDate
             state.lastSyncedAt = .now
             try cache.save()

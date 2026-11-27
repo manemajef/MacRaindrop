@@ -44,12 +44,7 @@ final class NavigationModel {
 
     /// Goes to the bookmark's collection and selects it, for Quick Search's ⌘↩.
     func reveal(_ raindrop: Raindrop) {
-        let item: SidebarItem = switch raindrop.collectionID {
-        case _ where raindrop.isInTrash: .trash
-        case SystemCollectionID.unsorted: .unsorted
-        case let id: .collection(id)
-        }
-        go(to: item)
+        go(to: SidebarItem(home: raindrop))
         selection = [raindrop.id]
     }
 

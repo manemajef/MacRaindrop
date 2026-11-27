@@ -1,7 +1,7 @@
 import Foundation
 
-/// How a collection's bookmarks are shown.
-enum CollectionMode: String, CaseIterable, Identifiable {
+/// How the window shows bookmarks: as cards, or as a list beside the page.
+enum ViewMode: String, CaseIterable, Identifiable {
     /// Sidebar and a grid of cards; double-clicking a card opens it in the browser.
     case cards
     

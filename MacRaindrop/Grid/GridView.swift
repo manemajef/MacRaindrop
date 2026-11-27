@@ -15,6 +15,8 @@ struct GridView: View {
     let raindrops: [Raindrop]
     @Binding var selection: Set<Raindrop.ID>
     var collections: [RaindropCollection] = []
+    /// Whether cards say which collection they're in. See `SidebarItem.showsCollectionLabel`.
+    var showsCollectionLabel = true
     var openCollection: (RaindropCollection.ID) -> Void = { _ in }
 
     /// The selected collection. Collection selection is singular and never mixed with bookmarks.
@@ -99,7 +101,7 @@ struct GridView: View {
 
     private func card(_ raindrop: Raindrop) -> some View {
         RaindropCard(raindrop: raindrop, isSelected: selection.contains(raindrop.id),
-                     isPending: store.pendingIDs.contains(raindrop.id))
+                     isPending: store.pendingIDs.contains(raindrop.id), showsCollectionLabel: showsCollectionLabel)
             // Shorter cards stretch to their row's height.
             .frame(maxHeight: .infinity, alignment: .top)
             .onTapGesture { click(raindrop.id) }

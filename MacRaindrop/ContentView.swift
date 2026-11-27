@@ -3,29 +3,18 @@ import SwiftUI
 /// A library window: sidebar, bookmarks as cards or a list, and the inspector.
 struct ContentView: View {
     @Environment(LibraryStore.self) private var store
-    @Environment(AppSession.self) private var session
-    @Environment(\.appearsActive) private var appearsActive
     @State private var navigation = NavigationModel()
     @State private var prompts = ActionPrompts()
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
-    @AppStorage("collectionMode") private var mode: CollectionMode = .cards
+    // The key keeps its old name, so the mode chosen before the rename is kept.
+    @AppStorage("collectionMode") private var mode: ViewMode = .cards
     @AppStorage("raindropSort") private var sort: RaindropSort = .newest
     @AppStorage("showInspector") private var showInspector = true
 
+    /// What the location shows, searched and sorted.
     private var raindrops: [Raindrop] {
         guard let location = navigation.location else { return [] }
         return store.raindrops(in: location, matching: navigation.searchText, sortedBy: sort)
-    }
-
-    /// Subcollections of the current collection, shown as collection chips in cards mode.
-    /// Hidden while searching, since the search covers bookmarks only.
-    private var subcollections: [RaindropCollection] {
-        guard mode == .cards, navigation.searchText.isEmpty, case .collection(let id) = navigation.location else { return [] }
-        return store.subcollections(of: id)
-    }
-
-    private var selectedRaindrops: [Raindrop] {
-        navigation.selection.compactMap(store.raindrop(id:))
     }
 
     /// The selected raindrop, when exactly one is selected.
@@ -47,32 +36,7 @@ struct ContentView: View {
             .onChange(of: raindrops.map(\.id)) { _, visible in
                 navigation.selection.formIntersection(visible)
             }
-            .onChange(of: navigation.location, initial: true) {
-                navigation.revealLocation(in: store)
-            }
-            .focusedSceneValue(\.bookmarkContext, BookmarkContext(raindrops: selectedRaindrops, prompts: prompts))
-            .focusedSceneValue(\.navigation, navigation)
-            .presentsPrompts(prompts)
-            .syncsAutomatically()
-            .environment(prompts)
-            // Until the app has a delegate, the first window sets up Quick Search.
-            .task { QuickSearchController.install(session: session) }
-            .onChange(of: session.revealRequest) { takeRevealRequest() }
-            // Editing happens in the inspector, so Edit selects the bookmark and shows it.
-            .onChange(of: prompts.editRequest) { _, id in
-                guard let id else { return }
-                navigation.selection = [id]
-                showInspector = true
-            }
-            .onChange(of: appearsActive) { takeRevealRequest() }
-    }
-
-    /// Shows the bookmark Quick Search asked for, if this is the window in front.
-    private func takeRevealRequest() {
-        guard appearsActive, let id = session.revealRequest else { return }
-        session.revealRequest = nil
-        guard let raindrop = store.raindrop(id: id) else { return }
-        navigation.reveal(raindrop)
+            .libraryWindowBehaviors(navigation: navigation, prompts: prompts, showInspector: $showInspector)
     }
 
     // MARK: Layout
@@ -92,7 +56,7 @@ struct ContentView: View {
             NavigationSplitView(columnVisibility: $columnVisibility) {
                 sidebar
             } content: {
-                collection
+                bookmarks
                     .navigationSplitViewColumnWidth(min: 260, ideal: 320, max: 440)
             } detail: {
                 detail
@@ -102,7 +66,7 @@ struct ContentView: View {
             NavigationSplitView(columnVisibility: $columnVisibility) {
                 sidebar
             } detail: {
-                collection
+                bookmarks
                     // A floor for the grid, so the sidebar and inspector can't squeeze it to a
                     // sliver. The window can't shrink below it; the sidebar can still collapse.
                     .frame(minWidth: GridMetrics.minWidth)
@@ -129,52 +93,8 @@ struct ContentView: View {
         }
     }
 
-    @ViewBuilder
-    private var collection: some View {
-        @Bindable var navigation = navigation
-        switch store.phase {
-        case .idle, .loading:
-            ProgressView()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        case .failed(let message):
-            ContentUnavailableView {
-                Label("Couldn't Load Library", systemImage: "exclamationmark.triangle")
-            } description: {
-                Text(message)
-            } actions: {
-                Button("Try Again") { Task { await store.load() } }
-                if store.service is RaindropAPIService {
-                    SettingsLink { Text("Change Token…") }
-                }
-            }
-        case .loaded:
-            if let location = navigation.location {
-                Group {
-                    switch mode {
-                    case .list: ListView(raindrops: raindrops, selection: $navigation.selection)
-                    case .cards:
-                        GridView(raindrops: raindrops, selection: $navigation.selection, collections: subcollections) { id in
-                            navigation.go(to: .collection(id))
-                        }
-                    }
-                }
-                // A fresh list per location. Diffing one AppKit outline into a completely
-                // different set of rows while its selection is cleared trips a SwiftUI assertion
-                // (`ViewListTree.visitItem`), which crashed both the app and the live preview.
-                .id(location)
-                .overlay {
-                    if raindrops.isEmpty, subcollections.isEmpty {
-                        if navigation.searchText.isEmpty {
-                            ContentUnavailableView("No Bookmarks", systemImage: "bookmark", description: Text("Nothing saved here yet."))
-                        } else {
-                            ContentUnavailableView.search(text: navigation.searchText)
-                        }
-                    }
-                }
-            } else {
-                ContentUnavailableView("Select a Collection", systemImage: "sidebar.left")
-            }
-        }
+    private var bookmarks: some View {
+        BookmarksView(navigation: navigation, mode: mode, raindrops: raindrops)
     }
 
     @ViewBuilder

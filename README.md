@@ -43,18 +43,25 @@ The interface is SwiftUI. Cards mode is a `LazyVGrid`. Thin AppKit views fill th
 
 Folders follow features, and each file is named after the type it holds. A `private` helper can share its only user's file. Anything used from another file gets its own file. A feature's main view is named after the feature (`GridView`, `ListView`, `InspectorView`); views of one item are named after the item (`RaindropCard`, `RaindropRow`, `CollectionTile`).
 
+`Models`, `Library` and `Services` are the data and its rules, with no UI: nothing in them imports SwiftUI or AppKit. Everything else is interface, in a folder for the feature it belongs to, or in `Shared` when several features use it.
+
 | Path | Contents |
 | --- | --- |
-| `MacRaindrop/` | App entry (`MacRaindropApp`, `AppDelegate`, `AppSession`), the window (`ContentView`, `ContentToolbar`), and its `NavigationModel`: location, history, selection, search |
-| `MacRaindrop/Sidebar`, `Grid`, `List`, `Inspector` | The window's parts. `Grid` is cards mode; `List` is list mode and its page view |
-| `MacRaindrop/Commands` | Menu bar commands |
-| `MacRaindrop/Actions` | Bookmark actions menu, the prompts they raise (`ActionPrompts`), and their sheets |
-| `MacRaindrop/DragAndDrop` | Drop targets, the moves they make (`LibraryDrop`), and dragging bookmarks out |
-| `MacRaindrop/QuickSearch` | The ⇧⌘L panel |
-| `MacRaindrop/Account` | Token prompt and Settings › Account |
-| `MacRaindrop/Models` | Codable types mirroring the Raindrop REST API, plus `SidebarItem` and `RaindropSort` |
-| `MacRaindrop/Library` | `LibraryStore` and what keeps it: SwiftData cache, sync engine, search index, automatic sync |
-| `MacRaindrop/Services` | API client, sample-data service, image pipeline |
-| `MacRaindrop/Shared` | Views used across features (`CoverImage`, `TagList`, `FlowLayout`), display helpers, and `previewEnvironment()` |
+| `MacRaindrop/` | The entry points: `MacRaindropApp`, and `ContentView`, the library window's root view. It lays out the sidebar, `BookmarksView`, page and inspector |
+| `App` | `AppDelegate` (keeps the app alive for Quick Search) and `AppSession` (which library, from the token) |
+| `Window` | The rest of the library window: `BookmarksView` (cards or list, or why there's nothing to show), `LibraryWindowBehaviors` (menu bar context, prompts, sync, Quick Search reveals), `ContentToolbar`, `NavigationModel` (location, history, selection, search) and `ViewMode` |
+| `Sidebar`, `Grid`, `List`, `Inspector` | The window's parts. `Grid` is cards mode; `List` is list mode and its page view. `Inspector` includes its tag and collection editors |
+| `Commands` | Menu bar commands |
+| `Actions` | Bookmark actions menu, the prompts they raise (`ActionPrompts`), and their sheets |
+| `DragAndDrop` | What gets dragged (`RaindropLink`, `CollectionDrag`), drop targets, and the moves they make (`LibraryDrop`) |
+| `QuickSearch` | The ⇧⌘L panel |
+| `Account` | Token prompt and Settings › Account |
+| `Shared` | Views used across features (`CoverImage`, `TagList`, `FlowLayout`), display helpers, and `previewEnvironment()` |
+| `Models` | Codable types mirroring the Raindrop REST API, plus `SidebarItem` and `RaindropSort` |
+| `Library` | `LibraryStore` and what keeps it: SwiftData cache, sync engine, search index. `LibraryQuery` holds the rules for which raindrops a sidebar item shows |
+| `Services` | API client, sample-data service, image pipeline |
+| `SampleData` | The bundled sample library, for Debug builds and previews |
+
+Paths other than `MacRaindrop/` itself are inside it.
 
 Previews live with the view they preview. The sidebar's are the exception, in `SidebarView+Previews.swift`, because previewing a sectioned `List` from its own file crashes the canvas.

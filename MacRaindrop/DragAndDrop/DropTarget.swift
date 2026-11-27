@@ -34,7 +34,7 @@ private struct DropTarget: ViewModifier {
     private var acceptedTypes: [UTType] {
         switch target {
         case .item(.collection): [.raindropBookmark, .raindropCollection]
-        case .item(.all): []
+        case .item(.all), .item(.filter): []
         case .item: [.raindropBookmark]
         case .topLevel: [.raindropCollection]
         }

@@ -20,6 +20,8 @@ nonisolated struct Raindrop: Identifiable, Hashable, Codable, Sendable {
     /// Manual ordering inside a collection.
     var sort: Int
     var cache: Cache?
+    /// Set for a file uploaded to Raindrop rather than a link saved from the web.
+    var file: File?
     var reminder: Reminder?
     var created: Date
     var lastUpdate: Date
@@ -32,7 +34,7 @@ nonisolated struct Raindrop: Identifiable, Hashable, Codable, Sendable {
         case id = "_id"
         case collectionID = "collectionId"
         case link, title, excerpt, note, type, cover, media, tags, highlights
-        case important, removed, broken, domain, sort, cache, reminder, created, lastUpdate
+        case important, removed, broken, domain, sort, cache, file, reminder, created, lastUpdate
     }
 
     init(from decoder: any Decoder) throws {
@@ -55,6 +57,7 @@ nonisolated struct Raindrop: Identifiable, Hashable, Codable, Sendable {
         collectionID = try c.decodeIfPresent(Int.self, forKey: .collectionID) ?? SystemCollectionID.unsorted
         sort = try c.decodeIfPresent(Int.self, forKey: .sort) ?? 0
         cache = try c.decodeIfPresent(Cache.self, forKey: .cache)
+        file = try c.decodeIfPresent(File.self, forKey: .file)
         reminder = try c.decodeIfPresent(Reminder.self, forKey: .reminder)
         created = try c.decode(Date.self, forKey: .created)
         lastUpdate = try c.decode(Date.self, forKey: .lastUpdate)
@@ -104,6 +107,14 @@ nonisolated struct Raindrop: Identifiable, Hashable, Codable, Sendable {
         var status: String
         var size: Int?
         var created: Date?
+    }
+
+    struct File: Hashable, Codable, Sendable {
+        var name: String
+        /// In bytes.
+        var size: Int
+        /// The MIME type.
+        var type: String
     }
 
     struct Reminder: Hashable, Codable, Sendable {

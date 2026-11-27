@@ -2,10 +2,9 @@ import Foundation
 import Network
 import Observation
 
-/// A filtered, sorted list of raindrops, as `LibraryStore.raindrops(in:matching:sortedBy:)` returns it.
+/// A filtered, sorted list of raindrops, as `LibraryStore.raindrops(matching:sortedBy:)` returns it.
 struct RaindropQuery: Hashable {
-    var item: SidebarItem
-    var text: String
+    var query: LibraryQuery
     var sort: RaindropSort
 }
 
@@ -35,8 +34,6 @@ final class LibraryStore {
     }
     /// Goes up whenever a bookmark or collection changes, for views that keep their own copy.
     private(set) var revision = 0
-    /// How many raindrops each sidebar item shows. Counted once per change, not once per row.
-    private(set) var counts: [SidebarItem: Int] = [:]
     /// Every tag in use, with how many raindrops carry it, most used first.
     private(set) var tags: [(name: String, count: Int)] = []
     /// True while syncing, including when cached data is already on screen.
@@ -67,6 +64,11 @@ final class LibraryStore {
     /// Filtered and sorted lists already worked out, until `raindrops` changes. Views ask for
     /// the same list several times per update, and on every selection change.
     @ObservationIgnored var queryResults: [RaindropQuery: [Raindrop]] = [:]
+    /// How many raindrops each query matches, for the sidebar badges, until `raindrops` changes.
+    /// Counted the first time a row asks, not once per row redraw.
+    @ObservationIgnored var countResults: [LibraryQuery: Int] = [:]
+    /// What queries need to know about the whole library, such as which raindrops are duplicates.
+    @ObservationIgnored private(set) var queryContext = LibraryQuery.Context(raindrops: [])
     /// The Quick Search index, built in the background on first use, until the library changes.
     @ObservationIgnored var searchIndexTask: Task<SearchIndex, Never>?
     /// That index once it's built, for answering a keystroke without waiting.
@@ -216,25 +218,17 @@ final class LibraryStore {
         libraryChanged()
         indexByID = Dictionary(raindrops.enumerated().map { ($1.id, $0) }) { first, _ in first }
         queryResults = [:]
+        countResults = [:]
+        queryContext = LibraryQuery.Context(raindrops: raindrops)
 
-        var counts: [SidebarItem: Int] = [:]
-        for raindrop in raindrops {
-            if raindrop.isInTrash {
-                counts[.trash, default: 0] += 1
-                continue
-            }
-            counts[.all, default: 0] += 1
-            counts[.collection(raindrop.collectionID), default: 0] += 1
-            if raindrop.collectionID == SystemCollectionID.unsorted { counts[.unsorted, default: 0] += 1 }
-            if raindrop.important { counts[.important, default: 0] += 1 }
-            for tag in Set(raindrop.tags) { counts[.tag(tag), default: 0] += 1 }
+        // The tags of what All shows, so each count is what that tag's row would list.
+        let library = SidebarItem.all.query
+        var tagCounts: [String: Int] = [:]
+        for raindrop in raindrops where library.matches(raindrop, in: queryContext) {
+            for tag in Set(raindrop.tags) { tagCounts[tag, default: 0] += 1 }
         }
-        self.counts = counts
-        tags = counts
-            .compactMap { item, count in
-                guard case .tag(let name) = item else { return nil }
-                return (name: name, count: count)
-            }
+        tags = tagCounts
+            .map { (name: $0.key, count: $0.value) }
             .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
     }
 

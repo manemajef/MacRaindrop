@@ -24,7 +24,7 @@ struct LibraryDrop {
             prompts.delete(ids.compactMap(store.raindrop(id:)), in: store)
         case .tag(let tag):
             await store.attempt("Couldn't Add Tag") { try await store.addTags([tag], to: ids) }
-        case .all:
+        case .all, .filter:
             break
         }
     }

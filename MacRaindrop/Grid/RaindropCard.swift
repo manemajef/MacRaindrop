@@ -6,6 +6,8 @@ struct RaindropCard: View {
     let isSelected: Bool
     /// A write to this raindrop is waiting for the server.
     var isPending = false
+    /// Whether to say which collection the raindrop is in. Not drawn yet.
+    var showsCollectionLabel = true
     static let coverHeight: CGFloat = 150
     static let titleLines = 3
     static let excerptLines = 3
